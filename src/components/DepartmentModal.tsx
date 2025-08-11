@@ -2,6 +2,15 @@
 
 import { Fragment, useState, useEffect } from 'react';
 import { Dialog, Transition } from '@headlessui/react';
+import axios from 'axios';
+import { Department as DepartmentType } from '@/lib/api';
+
+type Department = {
+  id?: string;
+  name: string;
+  code: string;
+  description: string;
+};
 
 interface DepartmentModalProps {
   isOpen: boolean;

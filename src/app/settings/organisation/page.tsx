@@ -1,8 +1,9 @@
 'use client';
 
 import { useState, useRef } from 'react';
-import { MdUpload, MdClose } from 'react-icons/md';
+import { MdUpload, MdClose, MdBusiness } from 'react-icons/md';
 import Image from 'next/image';
+import SettingsLayout from '@/components/SettingsLayout';
 
 const dateFormats = [
   { value: 'dd MMM yyyy', display: '02 Jun 2025', example: '02 Jun 2025' },
@@ -63,39 +64,44 @@ export default function OrganisationProfilePage() {
   };
 
   return (
-    <div className="min-h-screen bg-white">
+    <SettingsLayout
+      title="Organization Profile"
+      description="Configure your company details and basic information"
+    >
       {/* Success Notification */}
       {showNotification && (
-        <div className="fixed top-4 right-4 z-50 bg-green-50 text-green-800 px-4 py-3 rounded-lg shadow-lg border border-green-200 flex items-center animate-fade-in">
-          <svg className="h-5 w-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
+        <div className="fixed top-4 right-4 z-50 bg-green-50 text-green-800 px-4 py-3 rounded-lg shadow-sm border border-green-200 flex items-center animate-fade-in">
+          <svg className="h-4 w-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
             <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
           </svg>
           Organisation profile updated successfully
         </div>
       )}
 
-      {/* Content */}
-      <div className="max-w-[800px] mx-auto py-8 px-4">
-        <div className="space-y-8">
+      <div className="p-6 bg-gradient-to-br from-yellow-50 via-orange-50 to-amber-50 min-h-screen">
+        <div className="max-w-4xl mx-auto space-y-6">
           {/* Organisation Logo */}
-          <div>
-            <h3 className="text-sm font-medium text-gray-700 mb-2">Organisation Logo</h3>
-            <div className="mt-2 border border-dashed border-gray-300 rounded-lg p-6 bg-white">
-              <div className="flex items-start space-x-8">
-                <div className="w-[240px] h-[160px] bg-gray-50 border border-gray-200 rounded-lg flex flex-col items-center justify-center relative">
+          <div className="bg-white/80 backdrop-blur-sm rounded-xl shadow-sm border border-yellow-100 p-4">
+            <h3 className="text-base font-semibold text-gray-800 mb-3 flex items-center">
+              <MdBusiness className="w-4 h-4 mr-2 text-yellow-500" />
+              Organisation Logo
+            </h3>
+            <div className="border border-dashed border-yellow-200 rounded-lg p-4 bg-yellow-50">
+              <div className="flex items-start space-x-4">
+                <div className="w-[160px] h-[120px] bg-white border-2 border-yellow-200 rounded-lg flex flex-col items-center justify-center relative shadow-sm">
                   {logo ? (
                     <>
                       <Image
                         src={logo}
                         alt="Organization Logo"
                         fill
-                        className="object-contain p-4 rounded-lg"
+                        className="object-contain p-3 rounded-lg"
                       />
                       <button
                         onClick={removeLogo}
-                        className="absolute top-2 right-2 p-1 bg-white rounded-full shadow-sm hover:bg-gray-100"
+                        className="absolute -top-1 -right-1 p-1 bg-red-500 text-white rounded-full shadow-sm hover:bg-red-600 transition-colors"
                       >
-                        <MdClose className="w-4 h-4 text-gray-500" />
+                        <MdClose className="w-2 h-2" />
                       </button>
                     </>
                   ) : (
@@ -109,19 +115,19 @@ export default function OrganisationProfilePage() {
                       />
                       <label 
                         htmlFor="logo-upload"
-                        className="flex flex-col items-center justify-center w-full h-full cursor-pointer hover:bg-gray-100 transition-colors rounded-lg"
+                        className="flex flex-col items-center justify-center w-full h-full cursor-pointer hover:bg-yellow-50 transition-colors rounded-lg group"
                       >
-                        <MdUpload className="w-6 h-6 text-gray-400 mb-2" />
-                        <span className="text-sm text-gray-500">Upload Logo</span>
+                        <MdUpload className="w-6 h-6 text-gray-400 group-hover:text-yellow-500 mb-1 transition-colors" />
+                        <span className="text-xs text-gray-500 group-hover:text-yellow-600 font-medium">Upload Logo</span>
                       </label>
                     </>
                   )}
                 </div>
-                <div className="flex-1 pt-2">
-                  <p className="text-sm text-gray-600">
+                <div className="flex-1 pt-1">
+                  <p className="text-xs text-gray-600 mb-1">
                     This logo will be displayed on documents such as Payslip and TDS Worksheet.
                   </p>
-                  <p className="text-xs text-gray-500 mt-1">
+                  <p className="text-xs text-gray-500">
                     Preferred Image Size: 240 × 240 pixels @ 72 DPI, Maximum size of 1MB.
                   </p>
                 </div>
@@ -129,148 +135,149 @@ export default function OrganisationProfilePage() {
             </div>
           </div>
 
-          {/* Organisation Name */}
-          <div className="pt-4">
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Organisation Name<span className="text-red-500">*</span>
-            </label>
-            <p className="text-sm text-gray-500 mb-2">
-              This is your registered business name which will appear in all the forms and payslips.
-            </p>
-            <input
-              type="text"
-              value={formData.name}
-              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              className="block w-full h-10 px-3 rounded-md border border-gray-300 shadow-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 sm:text-sm text-black"
-            />
-          </div>
+          {/* Basic Information */}
+          <div className="bg-white/80 backdrop-blur-sm rounded-xl shadow-sm border border-yellow-100 p-4">
+            <h3 className="text-base font-semibold text-gray-800 mb-4">Basic Information</h3>
 
-          {/* Business Location and Industry */}
-          <div className="grid grid-cols-2 gap-6 pt-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Business Location<span className="text-red-500">*</span>
+            {/* Organisation Name */}
+            <div className="mb-4">
+              <label className="block text-xs font-medium text-gray-700 mb-1">
+                Organisation Name<span className="text-red-500">*</span>
               </label>
+              <p className="text-xs text-gray-500 mb-2">
+                This is your registered business name which will appear in all the forms and payslips.
+              </p>
               <input
                 type="text"
-                value={formData.businessLocation}
-                readOnly
-                className="block w-full h-10 px-3 rounded-md border border-gray-300 bg-gray-50 shadow-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 sm:text-sm text-black"
+                value={formData.name}
+                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                className="block w-full px-3 py-2 rounded-lg border border-yellow-200 shadow-sm focus:border-yellow-400 focus:ring-2 focus:ring-yellow-300 focus:ring-opacity-20 text-gray-800 placeholder-gray-400 transition-all text-sm"
+                placeholder="Enter your organization name"
               />
             </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Industry<span className="text-red-500">*</span>
+
+            {/* Business Location and Industry */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">
+                  Business Location<span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={formData.businessLocation}
+                  readOnly
+                  className="block w-full px-3 py-2 rounded-lg border border-yellow-200 bg-yellow-50 shadow-sm text-gray-800 text-sm"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">
+                  Industry<span className="text-red-500">*</span>
+                </label>
+                <select
+                  value={formData.industry}
+                  onChange={(e) => setFormData({ ...formData, industry: e.target.value })}
+                  className="block w-full px-3 py-2 rounded-lg border border-yellow-200 shadow-sm focus:border-yellow-400 focus:ring-2 focus:ring-yellow-300 focus:ring-opacity-20 text-gray-800 text-sm"
+                >
+                  <option>Construction</option>
+                </select>
+              </div>
+            </div>
+
+            {/* Date Format */}
+            <div className="mb-4">
+              <label className="block text-xs font-medium text-gray-700 mb-1">
+                Date Format<span className="text-red-500">*</span>
               </label>
               <select
-                value={formData.industry}
-                onChange={(e) => setFormData({ ...formData, industry: e.target.value })}
-                className="block w-full h-10 px-3 rounded-md border border-gray-300 shadow-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 sm:text-sm text-black"
+                value={formData.dateFormat}
+                onChange={(e) => setFormData({ ...formData, dateFormat: e.target.value })}
+                className="block w-full px-3 py-2 rounded-lg border border-yellow-200 shadow-sm focus:border-yellow-400 focus:ring-2 focus:ring-yellow-300 focus:ring-opacity-20 text-gray-800 text-sm"
               >
-                <option>Construction</option>
+                {dateFormats.map((format) => (
+                  <option key={format.value} value={format.value}>
+                    {format.display} [ {format.example} ]
+                  </option>
+                ))}
               </select>
             </div>
           </div>
 
-          {/* Date Format */}
-          <div className="pt-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Date Format<span className="text-red-500">*</span>
+          {/* Address Information */}
+          <div className="bg-white/80 backdrop-blur-sm rounded-xl shadow-sm border border-yellow-100 p-4">
+            <h3 className="text-base font-semibold text-gray-800 mb-4">Address Information</h3>
+            
+            <div className="mb-4">
+              <label className="block text-xs font-medium text-gray-700 mb-1">
+                Organisation Address<span className="text-red-500">*</span>
               </label>
-              <div className="relative">
-                <select
-                  value={formData.dateFormat}
-                  onChange={(e) => setFormData({ ...formData, dateFormat: e.target.value })}
-                  className="block w-full h-10 px-3 pr-10 rounded-md border border-gray-300 shadow-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 sm:text-sm text-black appearance-none bg-white"
-                >
-                  {dateFormats.map((format) => (
-                    <option key={format.value} value={format.value}>
-                      {format.display} [ {format.example} ]
-                    </option>
-                  ))}
-                </select>
-                <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none">
-                  <svg className="h-5 w-5 text-gray-400" viewBox="0 0 20 20" fill="none" stroke="currentColor">
-                    <path d="M7 7l3-3 3 3m0 6l-3 3-3-3" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                  </svg>
+              <p className="text-xs text-gray-500 mb-2">
+                This will be considered as the address of your primary work location.
+              </p>
+              <div className="space-y-3">
+                <input
+                  type="text"
+                  value={formData.address1}
+                  onChange={(e) => setFormData({ ...formData, address1: e.target.value })}
+                  className="block w-full px-3 py-2 rounded-lg border border-yellow-200 shadow-sm focus:border-yellow-400 focus:ring-2 focus:ring-yellow-300 focus:ring-opacity-20 text-gray-800 placeholder-gray-400 text-sm"
+                  placeholder="Address Line 1"
+                />
+                <input
+                  type="text"
+                  value={formData.address2}
+                  onChange={(e) => setFormData({ ...formData, address2: e.target.value })}
+                  className="block w-full px-3 py-2 rounded-lg border border-yellow-200 shadow-sm focus:border-yellow-400 focus:ring-2 focus:ring-yellow-300 focus:ring-opacity-20 text-gray-800 placeholder-gray-400 text-sm"
+                  placeholder="Address Line 2"
+                />
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  <select
+                    value={formData.state}
+                    onChange={(e) => setFormData({ ...formData, state: e.target.value })}
+                    className="block w-full px-3 py-2 rounded-lg border border-yellow-200 shadow-sm focus:border-yellow-400 focus:ring-2 focus:ring-yellow-300 focus:ring-opacity-20 text-gray-800 text-sm"
+                  >
+                    <option>Andaman and Nicobar Islands</option>
+                  </select>
+                  <input
+                    type="text"
+                    value={formData.city}
+                    onChange={(e) => setFormData({ ...formData, city: e.target.value })}
+                    className="block w-full px-3 py-2 rounded-lg border border-yellow-200 shadow-sm focus:border-yellow-400 focus:ring-2 focus:ring-yellow-300 focus:ring-opacity-20 text-gray-800 placeholder-gray-400 text-sm"
+                    placeholder="City"
+                  />
+                  <input
+                    type="text"
+                    value={formData.pincode}
+                    onChange={(e) => setFormData({ ...formData, pincode: e.target.value })}
+                    className="block w-full px-3 py-2 rounded-lg border border-yellow-200 shadow-sm focus:border-yellow-400 focus:ring-2 focus:ring-yellow-300 focus:ring-opacity-20 text-gray-800 placeholder-gray-400 text-sm"
+                    placeholder="Pincode"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Filing Address */}
+            <div className="mb-4">
+              <label className="block text-xs font-medium text-gray-700 mb-1">Filing Address</label>
+              <p className="text-xs text-gray-500 mb-2">
+                This registered address will be used across all Forms and Payslips.
+              </p>
+              <div className="bg-gradient-to-r from-yellow-50 to-orange-50 rounded-lg border border-yellow-200 p-3">
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-xs font-semibold text-gray-800">Head Office</span>
+                  <button className="text-xs text-yellow-600 hover:text-yellow-700 font-medium">Change</button>
+                </div>
+                <div className="text-xs text-gray-700">
+                  <p>{formData.address1}</p>
+                  <p>{formData.city}, {formData.state} {formData.pincode}</p>
                 </div>
               </div>
             </div>
           </div>
 
-          {/* Organisation Address */}
-          <div className="pt-4">
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Organisation Address<span className="text-red-500">*</span>
-            </label>
-            <p className="text-sm text-gray-500 mb-2">
-              This will be considered as the address of your primary work location.
-            </p>
-            <div className="space-y-3">
-              <input
-                type="text"
-                value={formData.address1}
-                onChange={(e) => setFormData({ ...formData, address1: e.target.value })}
-                className="block w-full h-10 px-3 rounded-md border border-gray-300 shadow-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 sm:text-sm text-black"
-                placeholder="Address Line 1"
-              />
-              <input
-                type="text"
-                value={formData.address2}
-                onChange={(e) => setFormData({ ...formData, address2: e.target.value })}
-                className="block w-full h-10 px-3 rounded-md border border-gray-300 shadow-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 sm:text-sm text-black"
-                placeholder="Address Line 2"
-              />
-              <div className="grid grid-cols-3 gap-4">
-                <select
-                  value={formData.state}
-                  onChange={(e) => setFormData({ ...formData, state: e.target.value })}
-                  className="block w-full h-10 px-3 rounded-md border border-gray-300 shadow-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 sm:text-sm text-black"
-                >
-                  <option>Andaman and Nicobar Islands</option>
-                </select>
-                <input
-                  type="text"
-                  value={formData.city}
-                  onChange={(e) => setFormData({ ...formData, city: e.target.value })}
-                  className="block w-full h-10 px-3 rounded-md border border-gray-300 shadow-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 sm:text-sm text-black"
-                  placeholder="City"
-                />
-                <input
-                  type="text"
-                  value={formData.pincode}
-                  onChange={(e) => setFormData({ ...formData, pincode: e.target.value })}
-                  className="block w-full h-10 px-3 rounded-md border border-gray-300 shadow-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 sm:text-sm text-black"
-                  placeholder="Pincode"
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* Filing Address */}
-          <div className="pt-6">
-            <label className="block text-sm font-medium text-gray-700 mb-1">Filing Address</label>
-            <p className="text-sm text-gray-500 mb-2">
-              This registered address will be used across all Forms and Payslips.
-            </p>
-            <div className="bg-gray-50 rounded-lg border border-gray-200 p-4">
-              <div className="flex items-center justify-between mb-1">
-                <span className="text-sm font-medium text-gray-900">Head Office</span>
-                <button className="text-sm text-blue-600 hover:text-blue-700">Change</button>
-              </div>
-              <div className="text-sm text-gray-600">
-                <p>{formData.address1}</p>
-                <p>{formData.city}, {formData.state} {formData.pincode}</p>
-              </div>
-            </div>
-          </div>
-
           {/* Save Button */}
-          <div className="flex justify-end pt-6">
+          <div className="flex justify-end">
             <button
               onClick={handleSave}
-              className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+              className="px-6 py-2 bg-gradient-to-r from-yellow-400 to-orange-500 text-white font-medium rounded-lg hover:from-yellow-500 hover:to-orange-600 focus:outline-none focus:ring-2 focus:ring-yellow-300 focus:ring-opacity-20 transition-all shadow-sm hover:shadow-md transform hover:scale-105 text-sm"
             >
               Save Changes
             </button>
@@ -293,6 +300,6 @@ export default function OrganisationProfilePage() {
           animation: fade-in 0.3s ease-out;
         }
       `}</style>
-    </div>
+    </SettingsLayout>
   );
 } 

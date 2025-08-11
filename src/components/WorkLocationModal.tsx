@@ -25,7 +25,7 @@ export default function WorkLocationModal({ isOpen, onClose, onSave, location }:
     address: '',
     address2: '',
     city: '',
-    state: 'Andaman and Nicobar Islands',
+    state: '',
     pincode: '',
   });
 
@@ -45,7 +45,7 @@ export default function WorkLocationModal({ isOpen, onClose, onSave, location }:
         address: '',
         address2: '',
         city: '',
-        state: 'Andaman and Nicobar Islands',
+        state: '',
         pincode: '',
       });
     }
@@ -105,7 +105,7 @@ export default function WorkLocationModal({ isOpen, onClose, onSave, location }:
             leaveFrom="opacity-100"
             leaveTo="opacity-0"
           >
-            <div className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" />
+            <div className="fixed inset-0 bg-gray-500/75 backdrop-blur-sm transition-opacity" />
           </Transition.Child>
 
           <span className="hidden sm:inline-block sm:h-screen sm:align-middle" aria-hidden="true">

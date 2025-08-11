@@ -90,22 +90,24 @@ export default function EmployeeSearch() {
       {isOpen && (
         <div className="absolute mt-1 w-full bg-white rounded-lg shadow-lg border border-gray-200 max-h-96 overflow-auto z-50">
           {filteredEmployees.length > 0 ? (
-            filteredEmployees.map((employee) => (
-              <button
-                key={employee.employeeId}
-                onClick={() => handleEmployeeClick(employee.employeeId)}
-                className="w-full px-4 py-3 text-left hover:bg-gray-50 flex items-center justify-between group"
-              >
-                <div>
-                  <div className="text-sm font-medium text-black">
-                    {employee.firstName} {employee.lastName}
+            filteredEmployees
+              .filter(emp => emp.employeeId)
+              .map(employee => (
+                <button
+                  key={employee.employeeId || `${employee.firstName}-${employee.lastName}-${Math.random()}`}
+                  onClick={() => handleEmployeeClick(employee.employeeId)}
+                  className="w-full px-4 py-3 text-left hover:bg-gray-50 flex items-center justify-between group"
+                >
+                  <div>
+                    <div className="text-sm font-medium text-black">
+                      {employee.firstName} {employee.lastName}
+                    </div>
+                    <div className="text-xs text-gray-500">
+                      {employee.employeeId} • {employee.department}
+                    </div>
                   </div>
-                  <div className="text-xs text-gray-500">
-                    {employee.employeeId} • {employee.department}
-                  </div>
-                </div>
-              </button>
-            ))
+                </button>
+              ))
           ) : searchQuery ? (
             <div className="px-4 py-3 text-sm text-gray-500">
               No employees found

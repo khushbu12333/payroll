@@ -1,211 +1,440 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { MdEdit, MdMoreVert, MdPerson, MdDelete } from 'react-icons/md';
+import { useEffect, useState } from 'react';
+import { MdEdit, MdDelete, MdAdd, MdLocationOn, MdChevronLeft, MdChevronRight } from 'react-icons/md';
+import SettingsLayout from '@/components/SettingsLayout';
 import WorkLocationModal from '@/components/WorkLocationModal';
-
-interface Employee {
-  id: string;
-  workLocationId: string;
-}
 
 interface WorkLocation {
   id: string;
   name: string;
   address: string;
-  address2?: string;
   city: string;
   state: string;
+  country: string;
   pincode: string;
-  isFilingAddress: boolean;
+  status: 'Active' | 'Inactive';
 }
 
-export default function WorkLocationsPage() {
-  const [locations, setLocations] = useState<WorkLocation[]>([
-    {
-      id: '1',
-      name: 'Head Office',
-      address: 'college',
-      city: 'mumbai',
-      state: 'Andaman and Nicobar Islands',
-      pincode: '401105',
-      isFilingAddress: true
-    }
-  ]);
+interface ApiWorkLocation {
+  name: string;
+  address: string;
+  city: string;
+  state: string;
+  country: string;
+  pincode: string;
+  status: 'Active' | 'Inactive';
+}
 
-  // Simulated employees data - in real app, this would come from your API/database
-  const [employees] = useState<Employee[]>([
-    { id: '1', workLocationId: '1' },
-    { id: '2', workLocationId: '1' }
-  ]);
+interface PaginationInfo {
+  count: number;
+  next: string | null;
+  previous: string | null;
+  results: any[];
+}
 
+export default function LocationsPage() {
+  const [locations, setLocations] = useState<WorkLocation[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedLocation, setSelectedLocation] = useState<WorkLocation | undefined>();
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const [locationToDelete, setLocationToDelete] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [formData, setFormData] = useState<Partial<WorkLocation>>({
+    name: '',
+    address: '',
+    city: '',
+    state: '',
+    country: '',
+    pincode: '',
+    status: 'Active'
+  });
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalItems, setTotalItems] = useState(0);
+  const itemsPerPage = 10;
 
-  const getEmployeeCount = (locationId: string) => {
-    return employees.filter(emp => emp.workLocationId === locationId).length;
+  useEffect(() => {
+    fetchLocations();
+  }, [currentPage]);
+
+  const fetchLocations = async () => {
+    try {
+      setIsLoading(true);
+      const response = await fetch(`http://127.0.0.1:8000/api/work-locations/?page=${currentPage}&page_size=${itemsPerPage}`, {
+        headers: {
+          'Accept': 'application/json',
+        },
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch work locations');
+      }
+      
+      const data: PaginationInfo = await response.json();
+      
+      // Calculate total pages
+      const total = data.count || 0;
+      const pages = Math.ceil(total / itemsPerPage);
+      setTotalPages(pages);
+      setTotalItems(total);
+      
+      // Transform the data to match our interface
+      const transformedData = data.results.map((item: any) => ({
+        id: String(item.id || ''),
+        name: String(item.name || ''),
+        address: String(item.address || ''),
+        city: String(item.city || ''),
+        state: String(item.state || ''),
+        country: String(item.country || ''),
+        pincode: String(item.pincode || ''),
+        status: item.status === 'Inactive' ? 'Inactive' : 'Active' as 'Active' | 'Inactive'
+      }));
+
+      console.log('Fetched locations:', transformedData);
+      setLocations(transformedData);
+      setError(null);
+    } catch (err) {
+      console.error('Error fetching locations:', err);
+      setError(err instanceof Error ? err.message : 'An error occurred');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleAddLocation = () => {
     setSelectedLocation(undefined);
+    setFormData({
+      name: '',
+      address: '',
+      city: '',
+      state: '',
+      country: '',
+      pincode: '',
+      status: 'Active'
+    });
     setIsModalOpen(true);
   };
 
   const handleEditLocation = (location: WorkLocation) => {
     setSelectedLocation(location);
+    setFormData({
+      name: location.name,
+      address: location.address,
+      city: location.city,
+      state: location.state,
+      country: location.country,
+      pincode: location.pincode,
+      status: location.status
+    });
     setIsModalOpen(true);
   };
 
-  const handleDeleteLocation = (locationId: string) => {
-    const employeeCount = getEmployeeCount(locationId);
-    if (employeeCount > 0) {
-      alert('Cannot delete location with assigned employees');
-      return;
+  const handleDeleteLocation = async (locationId: string) => {
+    if (confirm('Are you sure you want to delete this work location?')) {
+      try {
+        const response = await fetch(`http://127.0.0.1:8000/api/work-locations/${locationId}/`, {
+          method: 'DELETE',
+        });
+        if (!response.ok) {
+          throw new Error('Failed to delete work location');
+        }
+        await fetchLocations(); // Refresh the list
+      } catch (err) {
+        console.error('Error deleting location:', err);
+        setError(err instanceof Error ? err.message : 'Failed to delete work location');
+      }
     }
-    
-    const isFilingLocation = locations.find(loc => loc.id === locationId)?.isFilingAddress;
-    if (isFilingLocation) {
-      alert('Cannot delete filing address location');
-      return;
-    }
-
-    setLocationToDelete(locationId);
-    setShowDeleteConfirm(true);
   };
 
-  const confirmDelete = () => {
-    if (locationToDelete) {
-      setLocations(locations.filter(loc => loc.id !== locationToDelete));
+  const handleToggleStatus = async (locationId: string) => {
+    try {
+      const location = locations.find(loc => loc.id === locationId);
+      if (!location) return;
+
+      const response = await fetch(`http://127.0.0.1:8000/api/work-locations/${locationId}/`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          status: location.status === 'Active' ? 'Inactive' : 'Active'
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to update work location status');
+      }
+      await fetchLocations(); // Refresh the list
+    } catch (err) {
+      console.error('Error updating status:', err);
+      setError(err instanceof Error ? err.message : 'Failed to update work location status');
     }
-    setShowDeleteConfirm(false);
-    setLocationToDelete(null);
   };
 
-  const handleSaveLocation = (locationData: Omit<WorkLocation, 'id' | 'isFilingAddress'>) => {
-    if (selectedLocation) {
-      // Edit existing location
-      setLocations(locations.map(loc => 
-        loc.id === selectedLocation.id 
-          ? { ...loc, ...locationData }
-          : loc
-      ));
-    } else {
-      // Add new location
-      const newLocation: WorkLocation = {
-        id: String(Date.now()),
-        ...locationData,
-        isFilingAddress: false
+  const handleSaveLocation = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const url = selectedLocation 
+        ? `http://127.0.0.1:8000/api/work-locations/${selectedLocation.id}/`
+        : 'http://127.0.0.1:8000/api/work-locations/';
+      
+      const method = selectedLocation ? 'PUT' : 'POST';
+
+      // Prepare the data according to Django model fields
+      const apiData = {
+        name: formData.name?.trim() || '',
+        address: formData.address?.trim() || '',
+        city: formData.city?.trim() || '',
+        state: formData.state?.trim() || '',
+        country: formData.country?.trim() || '',
+        pincode: formData.pincode?.trim() || '',
+        status: formData.status || 'Active'
       };
-      setLocations([...locations, newLocation]);
+
+      console.log('Sending data to API:', {
+        url,
+        method,
+        data: apiData
+      });
+
+      const response = await fetch(url, {
+        method,
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+        body: JSON.stringify(apiData),
+      });
+
+      const responseData = await response.json().catch(() => null);
+
+      if (!response.ok) {
+        console.error('API Error Response:', {
+          status: response.status,
+          statusText: response.statusText,
+          error: responseData
+        });
+
+        let errorMessage = 'Failed to save work location';
+        if (responseData) {
+          if (typeof responseData === 'object') {
+            const errors = Object.entries(responseData)
+              .map(([field, messages]) => `${field}: ${Array.isArray(messages) ? messages.join(', ') : messages}`)
+              .join('\n');
+            errorMessage = `Validation Error:\n${errors}`;
+          } else if (typeof responseData === 'string') {
+            errorMessage = responseData;
+          } else if (responseData.detail) {
+            errorMessage = responseData.detail;
+          }
+        }
+
+        throw new Error(errorMessage);
+      }
+
+      console.log('API Response:', responseData);
+
+      // Close modal and refresh data
+      setIsModalOpen(false);
+      await fetchLocations();
+
+      // Show success message
+      alert(selectedLocation ? 'Work location updated successfully!' : 'Work location created successfully!');
+    } catch (err) {
+      console.error('Error saving location:', err);
+      setError(err instanceof Error ? err.message : 'Failed to save work location');
     }
   };
+
+  const handlePageChange = (newPage: number) => {
+    if (newPage >= 1 && newPage <= totalPages) {
+      setCurrentPage(newPage);
+    }
+  };
+
+  const activeCount = locations.filter(loc => loc.status === 'Active').length;
+
+  if (isLoading) {
+    return (
+      <SettingsLayout
+        title="Work Locations"
+        description="Manage company work locations"
+      >
+        <div className="p-6">
+          <div className="flex items-center justify-center h-64">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+          </div>
+        </div>
+      </SettingsLayout>
+    );
+  }
+
+  if (error) {
+    return (
+      <SettingsLayout
+        title="Work Locations"
+        description="Manage company work locations"
+      >
+        <div className="p-6">
+          <div className="bg-red-50 border border-red-200 rounded-xl p-6 text-center">
+            <p className="text-red-600">{error}</p>
+            <button
+              onClick={fetchLocations}
+              className="mt-4 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
+            >
+              Retry
+            </button>
+          </div>
+        </div>
+      </SettingsLayout>
+    );
+  }
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Header */}
-        <div className="flex justify-between items-center mb-8">
-          <h1 className="text-2xl font-semibold text-gray-900">Work Locations</h1>
-          <button
-            onClick={handleAddLocation}
-            className="px-4 py-2 bg-green-500 text-white text-sm font-medium rounded-lg hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2"
-          >
-            Add Work Location
-          </button>
-        </div>
-
-        {/* Location Cards */}
-        <div className="grid grid-cols-1 gap-6">
-          {locations.map((location) => (
-            <div
-              key={location.id}
-              className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden"
+    <SettingsLayout
+      title="Work Locations"
+      description="Manage company work locations"
+    >
+      <div className="p-6 bg-gradient-to-br from-yellow-50 via-orange-50 to-amber-50 min-h-screen">
+        <div className="max-w-6xl mx-auto space-y-6">
+          {/* Header */}
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div>
+              <h1 className="text-2xl font-bold text-gray-800">All Work Locations</h1>
+              <p className="text-gray-600 mt-1 text-sm">Manage your company's work locations and addresses</p>
+            </div>
+            <button
+              onClick={() => {
+                setSelectedLocation(undefined);
+                setIsModalOpen(true);
+              }}
+              className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-yellow-400 to-orange-500 text-white font-medium rounded-lg hover:from-yellow-500 hover:to-orange-600 transition-all shadow-sm hover:shadow-md transform hover:scale-105 text-sm"
             >
-              <div className="p-6">
-                {/* Header */}
-                <div className="flex justify-between items-start mb-4">
-                  <div>
-                    <h2 className="text-lg font-medium text-gray-900">{location.name}</h2>
-                    <div className="mt-1 text-sm text-gray-500">
-                      <p>{location.address}</p>
-                      {location.address2 && <p>{location.address2}</p>}
-                      <p>{location.city}, {location.state} {location.pincode}</p>
-                    </div>
-                  </div>
-                  <div className="flex space-x-2">
-                    <button
-                      onClick={() => handleEditLocation(location)}
-                      className="p-2 text-gray-400 hover:text-gray-600 rounded-full hover:bg-gray-100"
-                      title="Edit location"
-                    >
-                      <MdEdit className="w-5 h-5" />
-                    </button>
-                    <button
-                      onClick={() => handleDeleteLocation(location.id)}
-                      className="p-2 text-gray-400 hover:text-red-600 rounded-full hover:bg-gray-100"
-                      title="Delete location"
-                    >
-                      <MdDelete className="w-5 h-5" />
-                    </button>
-                  </div>
-                </div>
+              <MdAdd className="w-4 h-4 mr-2" />
+              Add Location
+            </button>
+          </div>
 
-                {/* Employee Count */}
-                <div className="flex items-center mt-4">
-                  <div className="flex items-center text-sm text-gray-500">
-                    <MdPerson className="w-5 h-5 mr-1.5 text-gray-400" />
-                    <span>{getEmployeeCount(location.id)} Employees</span>
-                  </div>
-                  {location.isFilingAddress && (
-                    <span className="ml-4 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                      FILING ADDRESS
-                    </span>
-                  )}
+          {/* Stats Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="bg-white/80 backdrop-blur-sm rounded-xl shadow-sm border border-yellow-100 p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs font-medium text-gray-600">Total Locations</p>
+                  <p className="text-2xl font-bold text-gray-800">{totalItems}</p>
+                </div>
+                <div className="p-2 bg-gradient-to-r from-yellow-400 to-yellow-500 rounded-lg">
+                  <MdLocationOn className="w-5 h-5 text-white" />
                 </div>
               </div>
             </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Add/Edit Location Modal */}
-      <WorkLocationModal
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        onSave={handleSaveLocation}
-        location={selectedLocation}
-      />
-
-      {/* Delete Confirmation Modal */}
-      {showDeleteConfirm && (
-        <div className="fixed inset-0 z-50 overflow-y-auto">
-          <div className="flex min-h-screen items-center justify-center px-4">
-            <div className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity"></div>
-            <div className="relative bg-white rounded-lg p-6 max-w-sm w-full">
-              <h3 className="text-lg font-medium text-gray-900 mb-4">Delete Location</h3>
-              <p className="text-sm text-gray-500 mb-6">
-                Are you sure you want to delete this location? This action cannot be undone.
-              </p>
-              <div className="flex justify-end space-x-3">
-                <button
-                  onClick={() => setShowDeleteConfirm(false)}
-                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={confirmDelete}
-                  className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-md hover:bg-red-700"
-                >
-                  Delete
-                </button>
+            
+            <div className="bg-white/80 backdrop-blur-sm rounded-xl shadow-sm border border-orange-100 p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs font-medium text-gray-600">Active Locations</p>
+                  <p className="text-2xl font-bold text-gray-800">{activeCount}</p>
+                </div>
+                <div className="p-2 bg-gradient-to-r from-orange-400 to-orange-500 rounded-lg">
+                  <MdLocationOn className="w-5 h-5 text-white" />
+                </div>
+              </div>
+            </div>
+            
+            <div className="bg-white/80 backdrop-blur-sm rounded-xl shadow-sm border border-blue-100 p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs font-medium text-gray-600">States Covered</p>
+                  <p className="text-2xl font-bold text-gray-800">
+                    {new Set(locations.map(loc => loc.state)).size}
+                  </p>
+                </div>
+                <div className="p-2 bg-gradient-to-r from-blue-400 to-blue-500 rounded-lg">
+                  <MdLocationOn className="w-5 h-5 text-white" />
+                </div>
               </div>
             </div>
           </div>
+
+          {/* Locations List */}
+          <div className="bg-white/80 backdrop-blur-sm rounded-xl shadow-sm border border-yellow-100">
+            <div className="p-4 border-b border-yellow-100">
+              <h2 className="text-lg font-semibold text-gray-800">All Locations</h2>
+            </div>
+            
+            {locations.length === 0 ? (
+              <div className="text-center py-12">
+                <div className="w-20 h-20 bg-gradient-to-r from-yellow-400 to-orange-500 rounded-full flex items-center justify-center mx-auto mb-4 shadow-sm">
+                  <MdLocationOn className="w-10 h-10 text-white" />
+                </div>
+                <h3 className="text-xl font-bold text-gray-800 mb-3">
+                  No Locations Added
+                </h3>
+                <p className="text-gray-600 mb-6 max-w-md mx-auto text-sm">
+                  Start by adding your first work location. You can manage addresses and contact information.
+                </p>
+                <button
+                  onClick={() => {
+                    setSelectedLocation(undefined);
+                    setIsModalOpen(true);
+                  }}
+                  className="inline-flex items-center px-6 py-3 bg-gradient-to-r from-yellow-400 to-orange-500 text-white font-medium rounded-lg hover:from-yellow-500 hover:to-orange-600 transition-all shadow-sm hover:shadow-md transform hover:scale-105 text-sm"
+                >
+                  <MdAdd className="w-4 h-4 mr-2" />
+                  Add First Location
+                </button>
+              </div>
+            ) : (
+              <div className="p-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {locations.map((location) => (
+                    <div key={location.id} className="bg-white/70 backdrop-blur-sm rounded-lg p-4 border border-yellow-100 hover:shadow-md transition-all group">
+                      <div className="flex items-start justify-between mb-3">
+                        <div className="w-8 h-8 bg-gradient-to-r from-yellow-400 to-orange-500 rounded-lg flex items-center justify-center">
+                          <MdLocationOn className="w-4 h-4 text-white" />
+                        </div>
+                        <div className="flex items-center space-x-1">
+                          <button
+                            onClick={() => {
+                              setSelectedLocation(location);
+                              setIsModalOpen(true);
+                            }}
+                            className="p-1 text-gray-400 hover:text-yellow-600 hover:bg-yellow-50 rounded transition-colors"
+                          >
+                            <MdEdit className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => handleDeleteLocation(location.id)}
+                            className="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
+                          >
+                            <MdDelete className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </div>
+                      
+                      <h3 className="font-semibold text-gray-800 mb-2 text-sm">{location.name}</h3>
+                      
+                      <div className="space-y-1 text-xs text-gray-600">
+                        <p>{location.address}</p>
+                        {location.address2 && <p>{location.address2}</p>}
+                        <p>{location.city}, {location.state} {location.pincode}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
         </div>
-      )}
-    </div>
+
+        {/* Work Location Modal */}
+        <WorkLocationModal
+          isOpen={isModalOpen}
+          onClose={() => setIsModalOpen(false)}
+          onSave={handleSaveLocation}
+          location={selectedLocation}
+        />
+      </div>
+    </SettingsLayout>
   );
 } 

@@ -149,6 +149,64 @@ export default function EditEmailTemplate({ params }: Props) {
   // Add a preview toggle
   const [showPreview, setShowPreview] = useState(false);
 
+  // New state for payslip modal
+  const [isPayslipModalOpen, setIsPayslipModalOpen] = useState(false);
+  const [payslipEmployeeName, setPayslipEmployeeName] = useState('');
+  const [payslipEmployeeId, setPayslipEmployeeId] = useState('');
+  const [payslipEmailId, setPayslipEmailId] = useState('');
+  const [payslipDescription, setPayslipDescription] = useState('');
+
+  const handlePayslipSend = () => {
+    setIsPayslipModalOpen(true);
+    setPayslipEmployeeName('');
+    setPayslipEmployeeId('');
+    setPayslipEmailId('');
+    setPayslipDescription('');
+  };
+
+  const handlePayslipClose = () => {
+    setIsPayslipModalOpen(false);
+  };
+
+  const handlePayslipSubmit = async () => {
+    if (!payslipEmployeeName || !payslipEmployeeId || !payslipEmailId) {
+      toast.error('Please fill in all fields in the Payslip modal.', { id: 'payslipSend' });
+      return;
+    }
+
+    try {
+      toast.loading('Sending Payslip...', { id: 'payslipSend' });
+
+      const formData = new FormData();
+      formData.append('from', emailTemplate.from); // Assuming emailTemplate.from is the sender
+      formData.append('to', payslipEmailId);
+      formData.append('subject', `Payslip for ${payslipEmployeeName}`);
+      formData.append('body', `Dear ${payslipEmployeeName},\n\nPlease find attached your payslip for the month of ${new Date().toLocaleDateString()}.\n\nBest regards,\n\n${emailTemplate.from}`);
+
+      // Add attachments (if any)
+      attachments.forEach((attachment, index) => {
+        formData.append(`attachment${index}`, attachment.file);
+      });
+
+      const response = await fetch('/api/send-email', {
+        method: 'POST',
+        body: formData,
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        toast.success('Payslip sent successfully!', { id: 'payslipSend' });
+        handlePayslipClose();
+      } else {
+        toast.error(data.error || 'Failed to send Payslip', { id: 'payslipSend' });
+      }
+    } catch (error) {
+      console.error('Error sending Payslip:', error);
+      toast.error('Failed to send Payslip', { id: 'payslipSend' });
+    }
+  };
+
   return (
     <div className="min-h-screen bg-white">
       <div className="max-w-[1200px] mx-auto px-8 py-12">
@@ -372,6 +430,85 @@ export default function EditEmailTemplate({ params }: Props) {
           </div>
         </div>
       </div>
+
+      {/* Payslip Modal */}
+      {isPayslipModalOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white p-6 rounded-lg shadow-xl max-w-md w-full">
+            <h3 className="text-lg font-semibold mb-4">Send Payslip</h3>
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-black mb-1">Employee Name</label>
+              <input
+                type="text"
+                value={payslipEmployeeName}
+                onChange={(e) => setPayslipEmployeeName(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                placeholder="Enter employee name"
+              />
+            </div>
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-black mb-1">Employee ID</label>
+              <input
+                type="text"
+                value={payslipEmployeeId}
+                onChange={(e) => setPayslipEmployeeId(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                placeholder="Enter employee ID"
+              />
+            </div>
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-black mb-1">Email ID</label>
+              <input
+                type="email"
+                value={payslipEmailId}
+                onChange={(e) => setPayslipEmailId(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                placeholder="Enter employee email"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-black mb-1">Description</label>
+              {/* @ts-expect-error: ReactQuill may not have types, ensure it's imported at the top */}
+              <ReactQuill
+                value={payslipDescription}
+                onChange={setPayslipDescription}
+                modules={{
+                  toolbar: [
+                    [{ 'header': [1, 2, false] }],
+                    ['bold', 'italic', 'underline'],
+                    [{ 'align': [] }],
+                    ['clean']
+                  ]
+                }}
+                className="bg-white min-h-[150px]"
+                theme="snow"
+              />
+            </div>
+            <div className="flex justify-end gap-2 mt-6">
+              <button
+                onClick={handlePayslipClose}
+                className="px-4 py-2 border border-gray-300 rounded-md text-black hover:bg-gray-50 transition-colors text-sm font-medium"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handlePayslipSubmit}
+                disabled={!payslipEmployeeName || !payslipEmployeeId || !payslipEmailId}
+                className={`px-4 py-2 rounded-md flex items-center gap-2 text-sm font-medium
+                  ${(!payslipEmployeeName || !payslipEmployeeId || !payslipEmailId)
+                    ? 'bg-gray-300 cursor-not-allowed text-gray-500'
+                    : 'bg-green-500 text-white hover:bg-green-600'
+                  }`}
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                </svg>
+                Send Payslip
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

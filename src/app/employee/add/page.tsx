@@ -1,9 +1,13 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { MdKeyboardArrowDown, MdPayments, MdAccountBalance, MdPayment, MdMoney } from 'react-icons/md';
+import { MdPayments, MdAccountBalance, MdPayment, MdMoney } from 'react-icons/md';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
+import Sidebar from '@/components/Sidebar';
+import DashboardLayout from '@/components/DashboardLayout';
+import { useParams } from 'next/navigation';
+import { employeeAPI } from '@/lib/api';
 
 const inputStyles = {
   base: "block w-full px-4 py-2.5 text-gray-700 bg-white border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 transition-colors",
@@ -861,9 +865,32 @@ const BasicDetailsForm = ({
             onChange={(e) => updateEmployeeData({ designation: e.target.value })}
           >
             <option value="">Select designation</option>
-            <option value="manager">Manager</option>
-            <option value="developer">Developer</option>
-            <option value="designer">Designer</option>
+            <option value="Accountant">Accountant</option>
+            <option value="Billing Engineer">Billing Engineer</option>
+            <option value="Campboss">Campboss</option>
+            <option value="Driver">Driver</option>
+            <option value="Electrician">Electrician</option>
+            <option value="Jr. Engineer">Jr. Engineer</option>
+            <option value="Lift Operator">Lift Operator</option>
+            <option value="Pharmacist">Pharmacist</option>
+            <option value="Project Manager">Project Manager</option>
+            <option value="QA/QC Engineer">QA/QC Engineer</option>
+            <option value="QA/QC Head">QA/QC Head</option>
+            <option value="QC Supervisor">QC Supervisor</option>
+            <option value="Safety Officer">Safety Officer</option>
+            <option value="Safety Supervisor">Safety Supervisor</option>
+            <option value="Signalman">Signalman</option>
+            <option value="Site Engineer">Site Engineer</option>
+            <option value="Site Incharge">Site Incharge</option>
+            <option value="Sr.Engineer">Sr.Engineer</option>
+            <option value="Sr.Supervisor">Sr.Supervisor</option>
+            <option value="Store Keeper">Store Keeper</option>
+            <option value="Supervisor">Supervisor</option>
+            <option value="Surveyor">Surveyor</option>
+            <option value="Sweeper">Sweeper</option>
+            <option value="TC Operator">TC Operator</option>
+            <option value="Welder">Welder</option>
+            <option value="Other">Other</option>
           </select>
         </div>
 
@@ -877,9 +904,23 @@ const BasicDetailsForm = ({
             onChange={(e) => updateEmployeeData({ department: e.target.value })}
           >
             <option value="">Select department</option>
-            <option value="engineering">Engineering</option>
-            <option value="design">Design</option>
-            <option value="hr">HR</option>
+            <option value="Billing & Quantity Surveying (QS)">Billing & Quantity Surveying (QS)</option>
+            <option value="Billing Engineer">Billing Engineer</option>
+            <option value="Design / AutoCAD">Design / AutoCAD</option>
+            <option value="Draftsman">Draftsman</option>
+            <option value="HR">HR</option>
+            <option value="IT">IT</option>
+            <option value="Mechanic">Mechanic</option>
+            <option value="Mechanical / Plant & Machinery (P&M)">Mechanical / Plant & Machinery (P&M)</option>
+            <option value="Planning">Planning</option>
+            <option value="Procurement & Store">Procurement & Store</option>
+            <option value="Project Manager">Project Manager</option>
+            <option value="QC Engineer">QC Engineer</option>
+            <option value="Quality Control (QC) / Quality Assurance (QA)">Quality Control (QC) / Quality Assurance (QA)</option>
+            <option value="Safety (EHS – Environment, Health & Safety)">Safety (EHS – Environment, Health & Safety)</option>
+            <option value="Site Execution">Site Execution</option>
+            <option value="Survey">Survey</option>
+
           </select>
         </div>
       </div>
@@ -936,22 +977,53 @@ export default function AddEmployeePage() {
     paymentMethod: '',
   });
 
-  const handleComplete = () => {
-    // Get existing employees from localStorage
-    const existingEmployees = localStorage.getItem('employees');
-    const employees = existingEmployees ? JSON.parse(existingEmployees) : [];
-    
-    // Add new employee to the list
-    employees.push(currentEmployee);
-    
-    // Save updated list back to localStorage
-    localStorage.setItem('employees', JSON.stringify(employees));
-    
-    // Save individual employee data
-    localStorage.setItem(`employee_${currentEmployee.employeeId}`, JSON.stringify(currentEmployee));
-    
-    setEmployeeList(prev => [...prev, currentEmployee]);
-    setIsCompleted(true);
+  const handleComplete = async () => {
+    try {
+      // Map UI fields to backend payload
+      const genderMap: Record<string, 'M' | 'F' | 'O'> = {
+        male: 'M',
+        female: 'F',
+        other: 'O',
+      };
+
+      const monthlyCTC = currentEmployee.annualCTC / 12;
+      const basicMonthly = Math.round((monthlyCTC * (currentEmployee.basicPercent || 0)) / 100);
+
+      const payload: any = {
+        employee_id: currentEmployee.employeeId.trim(),
+        first_name: currentEmployee.firstName.trim(),
+        last_name: currentEmployee.lastName.trim(),
+        work_email: currentEmployee.workEmail.trim(),
+        date_of_joining: currentEmployee.dateOfJoining,
+        date_of_birth: currentEmployee.dob,
+        mobile_number: currentEmployee.mobileNumber || null,
+        address: currentEmployee.address || '',
+        gender: genderMap[currentEmployee.gender] || 'O',
+        work_location: currentEmployee.workLocation || null,
+        designation: currentEmployee.designation || 'Employee',
+        status: 'ACTIVE',
+        employment_type: 'FULL_TIME',
+        basic_salary: String(basicMonthly || 0),
+        annual_ctc: String(currentEmployee.annualCTC || 0),
+        // department omitted for now (optional in backend)
+      };
+
+      // Persist via API
+      await employeeAPI.create(payload);
+
+      // Optional: mirror to localStorage for quick UX
+      const existingEmployees = localStorage.getItem('employees');
+      const employees = existingEmployees ? JSON.parse(existingEmployees) : [];
+      employees.push(currentEmployee);
+      localStorage.setItem('employees', JSON.stringify(employees));
+      localStorage.setItem(`employee_${currentEmployee.employeeId}`, JSON.stringify(currentEmployee));
+
+      setEmployeeList(prev => [...prev, currentEmployee]);
+      setIsCompleted(true);
+      router.push('/employee');
+    } catch (error: any) {
+      alert(`Failed to create employee: ${error?.message || 'Unknown error'}`);
+    }
   };
 
   const handleAddAnother = () => {
@@ -1000,79 +1072,89 @@ export default function AddEmployeePage() {
 
   if (isCompleted) {
     return (
-      <SuccessPage 
-        employeeName={`${currentEmployee.firstName} ${currentEmployee.lastName}`}
-        onAddAnother={handleAddAnother}
-        onViewDetails={handleViewDetails}
-      />
+      <DashboardLayout>
+        <main className="p-6 md:p-12">
+          <div className="w-full max-w-2xl">
+            <SuccessPage 
+              employeeName={`${currentEmployee.firstName} ${currentEmployee.lastName}`}
+              onAddAnother={handleAddAnother}
+              onViewDetails={handleViewDetails}
+            />
+          </div>
+        </main>
+      </DashboardLayout>
     );
   }
 
   return (
-    <div className="bg-white p-6 rounded-lg">
-      <h1 className="text-2xl font-semibold text-center mb-8 text-black">Add Employee</h1>
+    <DashboardLayout>
+      <main className="p-6 md:p-12">
+        <div className="w-full max-w-5xl bg-white p-8 md:p-12 rounded-2xl shadow-xl">
+          <h1 className="text-2xl font-semibold text-center mb-8 text-black">Add Employee</h1>
 
-      {/* Progress Steps */}
-      <div className="flex justify-center items-center mb-12">
-        {[
-          { step: 1, label: 'Basic Details' },
-          { step: 2, label: 'Salary Details' },
-          { step: 3, label: 'Personal Details' },
-          { step: 4, label: 'Payment Information' },
-        ].map((item, index) => (
-          <div key={item.step} className="flex items-center">
-            <div className={`flex items-center justify-center w-8 h-8 rounded-full border-2 
-              ${activeStep >= item.step 
-                ? 'border-blue-600 bg-blue-600 text-white' 
-                : 'border-gray-300 text-gray-500'}`}
-            >
-              {item.step}
-            </div>
-            <div className="text-sm text-gray-600 mx-2">{item.label}</div>
-            {index < 3 && (
-              <div className={`w-24 h-[2px] mx-2 ${activeStep > item.step ? 'bg-blue-600' : 'bg-gray-300'}`}></div>
-            )}
+          {/* Progress Steps */}
+          <div className="flex justify-center items-center mb-12">
+            {[
+              { step: 1, label: 'Basic Details' },
+              { step: 2, label: 'Salary Details' },
+              { step: 3, label: 'Personal Details' },
+              { step: 4, label: 'Payment Information' },
+            ].map((item, index) => (
+              <div key={item.step} className="flex items-center">
+                <div className={`flex items-center justify-center w-8 h-8 rounded-full border-2 
+                  ${activeStep >= item.step 
+                    ? 'border-blue-600 bg-blue-600 text-white' 
+                    : 'border-gray-300 text-gray-500'}`}
+                >
+                  {item.step}
+                </div>
+                <div className="text-sm text-gray-600 mx-2">{item.label}</div>
+                {index < 3 && (
+                  <div className={`w-24 h-[2px] mx-2 ${activeStep > item.step ? 'bg-blue-600' : 'bg-gray-300'}`}></div>
+                )}
+              </div>
+            ))}
           </div>
-        ))}
-      </div>
 
-      {/* Form Steps */}
-      {activeStep === 1 ? (
-        <form className="max-w-4xl mx-auto">
-          <BasicDetailsForm
-            employeeData={currentEmployee}
-            updateEmployeeData={updateEmployeeData}
-          />
-          <div className="mt-8 flex justify-end">
-            <button
-              type="button"
-              onClick={() => setActiveStep(2)}
-              className="px-6 py-2.5 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors"
-            >
-              Next
-            </button>
-          </div>
-        </form>
-      ) : activeStep === 2 ? (
-        <SalaryDetailsStep 
-          setActiveStep={setActiveStep} 
-          employeeData={currentEmployee}
-          updateEmployeeData={updateEmployeeData}
-        />
-      ) : activeStep === 3 ? (
-        <PersonalDetailsStep 
-          setActiveStep={setActiveStep}
-          employeeData={currentEmployee}
-          updateEmployeeData={updateEmployeeData}
-        />
-      ) : activeStep === 4 ? (
-        <PaymentInformationStep 
-          setActiveStep={setActiveStep} 
-          onComplete={handleComplete}
-          employeeData={currentEmployee}
-          updateEmployeeData={updateEmployeeData}
-        />
-      ) : null}
-    </div>
+          {/* Form Steps */}
+          {activeStep === 1 ? (
+            <form className="max-w-4xl mx-auto">
+              <BasicDetailsForm
+                employeeData={currentEmployee}
+                updateEmployeeData={updateEmployeeData}
+              />
+              <div className="mt-8 flex justify-end">
+                <button
+                  type="button"
+                  onClick={() => setActiveStep(2)}
+                  className="px-6 py-2.5 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors"
+                >
+                  Next
+                </button>
+              </div>
+            </form>
+          ) : activeStep === 2 ? (
+            <SalaryDetailsStep 
+              setActiveStep={setActiveStep} 
+              employeeData={currentEmployee}
+              updateEmployeeData={updateEmployeeData}
+            />
+          ) : activeStep === 3 ? (
+            <PersonalDetailsStep 
+              setActiveStep={setActiveStep}
+              employeeData={currentEmployee}
+              updateEmployeeData={updateEmployeeData}
+            />
+          ) : activeStep === 4 ? (
+            <PaymentInformationStep 
+              setActiveStep={setActiveStep} 
+              onComplete={handleComplete}
+              employeeData={currentEmployee}
+              updateEmployeeData={updateEmployeeData}
+            />
+          ) : null}
+        </div>
+      </main>
+    </DashboardLayout>
   );
 } 

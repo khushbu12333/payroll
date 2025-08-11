@@ -1,0 +1,15 @@
+.bgLightYellow {
+  background: linear-gradient(135deg, #fffbe6 0%, #fffde7 100%);
+  min-height: 100vh;
+  padding: 2rem 0;
+}
+
+/* Optional: Card or section styling for extra beauty */
+.settings-salary-templates-bg .card,
+.settings-salary-templates-bg section,
+.settings-salary-templates-bg .box {
+  background: #fffde7;
+  border-radius: 1.25rem;
+  box-shadow: 0 2px 16px 0 rgba(255, 221, 51, 0.08);
+  border: 1px solid #fff9c4;
+} 

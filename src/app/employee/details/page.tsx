@@ -2,385 +2,157 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import Image from 'next/image';
-import { MdEdit, MdEmail, MdPhone, MdCalendarToday, MdBusiness, MdLocationOn, MdMoreVert } from 'react-icons/md';
-import { useRouter } from 'next/navigation';
-import EditEmployeeForm from '@/components/EditEmployeeForm';
+import { useSearchParams } from 'next/navigation';
+import { employeeAPI, type Employee } from '@/lib/api';
+import DashboardLayout from '@/components/DashboardLayout';
+import { 
+  MdPerson, MdEmail, MdPhone, MdBusiness, MdCalendarToday, 
+  MdAttachMoney, MdWork, MdBadge, MdArrowBack, MdLocationOn, 
+  MdCheckCircle, MdContactMail 
+} from 'react-icons/md';
 
-interface EmployeeData {
-  firstName: string;
-  lastName: string;
-  employeeId: string;
-  workEmail: string;
-  dateOfJoining: string;
-  mobileNumber: string;
-  isDirector: boolean;
-  gender: string;
-  workLocation: string;
-  designation: string;
-  department: string;
-  annualCTC: number;
-  basicPercent: number;
-  hraPercent: number;
-  conveyanceAmount: number;
-  mealAllowance: number;
-  medicalAllowance: number;
-  personalPay: number;
-  professionTax: number;
-  advances: number;
-  dob: string;
-  address: string;
-  paymentMethod: string;
-  enablePortalAccess: boolean;
-}
-
-const tabs = [
-  { id: 'overview', label: 'Overview' },
-  { id: 'salary', label: 'Salary Details' },
-  { id: 'payslips', label: 'Payslips & Forms' },
-];
-
-const SalaryDetailsContent = ({ employeeData, onEdit }: { employeeData: EmployeeData; onEdit: () => void }) => {
-  const monthlyCtc = Math.round(employeeData.annualCTC / 12);
-  const basicMonthly = Math.round((monthlyCtc * employeeData.basicPercent) / 100);
-  const hraMonthly = Math.round((basicMonthly * employeeData.hraPercent) / 100);
-  const conveyanceMonthly = employeeData.conveyanceAmount;
-  const mealAllowanceMonthly = employeeData.mealAllowance;
-  const medicalAllowanceMonthly = employeeData.medicalAllowance;
-  const personalPayMonthly = employeeData.personalPay;
-  const totalEarnings = basicMonthly + hraMonthly + conveyanceMonthly + mealAllowanceMonthly + medicalAllowanceMonthly + personalPayMonthly;
-  const totalDeductions = employeeData.professionTax + employeeData.advances;
-  const netPayable = totalEarnings - totalDeductions;
-
-  return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-start">
-        <div>
-          <h2 className="text-xl font-semibold text-black mb-6 flex items-center">
-            Salary Details
-            <button onClick={onEdit} className="ml-2 text-gray-400 hover:text-gray-600">
-              <MdEdit className="w-5 h-5" />
-            </button>
-          </h2>
-        </div>
-        <button className="text-gray-400 hover:text-gray-600">
-          <MdMoreVert className="w-6 h-6" />
-        </button>
-      </div>
-
-      <div className="grid grid-cols-2 gap-8 mb-8">
-        <div>
-          <div className="text-sm text-gray-600">ANNUAL CTC</div>
-          <div className="text-xl font-semibold text-black">₹{employeeData.annualCTC.toLocaleString('en-IN')} per year</div>
-        </div>
-        <div>
-          <div className="text-sm text-gray-600">MONTHLY CTC</div>
-          <div className="text-xl font-semibold text-black">₹{monthlyCtc.toLocaleString('en-IN')} per month</div>
-        </div>
-      </div>
-
-      <div className="bg-white rounded-lg border">
-        <div className="grid grid-cols-3 gap-4 p-4 border-b">
-          <div className="text-sm font-medium text-black">SALARY COMPONENTS</div>
-          <div className="text-sm font-medium text-black">MONTHLY AMOUNT</div>
-          <div className="text-sm font-medium text-black">ANNUAL AMOUNT</div>
-        </div>
-
-        <div className="p-4 space-y-6">
-          <div>
-            <div className="text-sm font-medium text-black mb-4">Earnings</div>
-            
-            {/* Basic */}
-            <div className="grid grid-cols-3 gap-4 py-2">
-              <div>
-                <div className="text-sm text-black">Basic</div>
-                <div className="text-xs text-gray-500">({employeeData.basicPercent}% of Annual CTC)</div>
-              </div>
-              <div className="text-sm text-black">₹ {basicMonthly.toLocaleString('en-IN')}</div>
-              <div className="text-sm text-black">₹ {(basicMonthly * 12).toLocaleString('en-IN')}</div>
-            </div>
-
-            {/* HRA */}
-            <div className="grid grid-cols-3 gap-4 py-2">
-              <div>
-                <div className="text-sm text-black">House Rent Allowance</div>
-                <div className="text-xs text-gray-500">({employeeData.hraPercent}% of Basic Amount)</div>
-              </div>
-              <div className="text-sm text-black">₹ {hraMonthly.toLocaleString('en-IN')}</div>
-              <div className="text-sm text-black">₹ {(hraMonthly * 12).toLocaleString('en-IN')}</div>
-            </div>
-
-            {/* Conveyance */}
-            <div className="grid grid-cols-3 gap-4 py-2">
-              <div className="text-sm text-black">Conveyance Allowance</div>
-              <div className="text-sm text-black">₹ {conveyanceMonthly.toLocaleString('en-IN')}</div>
-              <div className="text-sm text-black">₹ {(conveyanceMonthly * 12).toLocaleString('en-IN')}</div>
-            </div>
-
-            {/* Meal Allowance */}
-            <div className="grid grid-cols-3 gap-4 py-2">
-              <div className="text-sm text-black">Meal Allowance</div>
-              <div className="text-sm text-black">₹ {mealAllowanceMonthly.toLocaleString('en-IN')}</div>
-              <div className="text-sm text-black">₹ {(mealAllowanceMonthly * 12).toLocaleString('en-IN')}</div>
-            </div>
-
-            {/* Medical Allowance */}
-            <div className="grid grid-cols-3 gap-4 py-2">
-              <div className="text-sm text-black">Medical Allowance</div>
-              <div className="text-sm text-black">₹ {medicalAllowanceMonthly.toLocaleString('en-IN')}</div>
-              <div className="text-sm text-black">₹ {(medicalAllowanceMonthly * 12).toLocaleString('en-IN')}</div>
-            </div>
-
-            {/* Personal Pay */}
-            <div className="grid grid-cols-3 gap-4 py-2">
-              <div className="text-sm text-black">Personal Pay</div>
-              <div className="text-sm text-black">₹ {personalPayMonthly.toLocaleString('en-IN')}</div>
-              <div className="text-sm text-black">₹ {(personalPayMonthly * 12).toLocaleString('en-IN')}</div>
-            </div>
-
-            {/* Total Earnings */}
-            <div className="grid grid-cols-3 gap-4 py-2 mt-4 bg-blue-50 p-3 rounded-lg">
-              <div className="text-sm font-medium text-black">Total Earnings</div>
-              <div className="text-sm font-medium text-black">₹ {totalEarnings.toLocaleString('en-IN')}</div>
-              <div className="text-sm font-medium text-black">₹ {(totalEarnings * 12).toLocaleString('en-IN')}</div>
-            </div>
-          </div>
-
-          {/* Deductions Section */}
-          <div>
-            <div className="text-sm font-medium text-black mb-4">Deductions</div>
-
-            {/* Professional Tax */}
-            <div className="grid grid-cols-3 gap-4 py-2">
-              <div className="text-sm text-black">Professional Tax</div>
-              <div className="text-sm text-black">₹ {employeeData.professionTax.toLocaleString('en-IN')}</div>
-              <div className="text-sm text-black">₹ {(employeeData.professionTax * 12).toLocaleString('en-IN')}</div>
-            </div>
-
-            {/* Advances */}
-            <div className="grid grid-cols-3 gap-4 py-2">
-              <div className="text-sm text-black">Advances</div>
-              <div className="text-sm text-black">₹ {employeeData.advances.toLocaleString('en-IN')}</div>
-              <div className="text-sm text-black">₹ {(employeeData.advances * 12).toLocaleString('en-IN')}</div>
-            </div>
-
-            {/* Total Deductions */}
-            <div className="grid grid-cols-3 gap-4 py-2 mt-4 bg-red-50 p-3 rounded-lg">
-              <div className="text-sm font-medium text-black">Total Deductions</div>
-              <div className="text-sm font-medium text-black">₹ {totalDeductions.toLocaleString('en-IN')}</div>
-              <div className="text-sm font-medium text-black">₹ {(totalDeductions * 12).toLocaleString('en-IN')}</div>
-            </div>
-          </div>
-
-          {/* Net Payable */}
-          <div className="grid grid-cols-3 gap-4 py-2 bg-green-50 p-3 rounded-lg">
-            <div className="text-sm font-medium text-black">Net Payable</div>
-            <div className="text-sm font-medium text-black">₹ {netPayable.toLocaleString('en-IN')}</div>
-            <div className="text-sm font-medium text-black">₹ {(netPayable * 12).toLocaleString('en-IN')}</div>
-          </div>
-        </div>
-      </div>
+// A styled component for each detail item
+const DetailItem = ({ icon, label, value }: { icon: React.ReactNode, label: string, value: string | undefined }) => (
+  <div className="flex items-center group transition-all duration-200 p-2 -mx-2 rounded-lg hover:bg-slate-100">
+    <div className="flex-shrink-0 w-10 h-10 flex items-center justify-center bg-white rounded-lg mr-4 border border-slate-200 group-hover:bg-indigo-50 group-hover:border-indigo-200 transition-colors">
+      <span className="h-5 w-5 text-indigo-500 transition-colors">{icon}</span>
     </div>
-  );
-};
+    <div className="flex-grow">
+      <p className="text-sm text-slate-500">{label}</p>
+      <p className="text-base font-semibold text-slate-800 break-words">{value || 'N/A'}</p>
+    </div>
+  </div>
+);
 
-export default function EmployeeDetailsPage() {
-  const [activeTab, setActiveTab] = useState('overview');
-  const [employeeData, setEmployeeData] = useState<EmployeeData | null>(null);
-  const [showEditForm, setShowEditForm] = useState(false);
-  const router = useRouter();
+const EmployeeDetailsPage = () => {
+  const searchParams = useSearchParams();
+  const [employee, setEmployee] = useState<Employee | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Get employee data from localStorage
-    const storedData = localStorage.getItem('currentEmployee');
-    if (storedData) {
-      setEmployeeData(JSON.parse(storedData));
+    const employeeId = searchParams.get('id');
+    if (employeeId) {
+      employeeAPI.getById(parseInt(employeeId, 10)).then((data: Employee) => {
+        setEmployee(data);
+        setIsLoading(false);
+      }).catch((error: any) => {
+        console.error("Failed to fetch employee details:", error);
+        setIsLoading(false);
+      });
     } else {
-      // If no data, redirect back to add employee page
-      router.push('/employee/add');
+      setIsLoading(false);
     }
-  }, []);
+  }, [searchParams]);
 
-  const handleEdit = () => {
-    setShowEditForm(true);
-  };
+  if (isLoading) {
+    return (
+      <DashboardLayout>
+        <div className="flex items-center justify-center h-screen bg-slate-50">
+          <div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-indigo-500"></div>
+          <p className="ml-4 text-slate-600">Loading Employee Details...</p>
+        </div>
+      </DashboardLayout>
+    );
+  }
 
-  const handleSave = (updatedData: EmployeeData) => {
-    setEmployeeData(updatedData);
-    localStorage.setItem('currentEmployee', JSON.stringify(updatedData));
-    setShowEditForm(false);
-  };
-
-  if (!employeeData) {
-    return <div>Loading...</div>;
+  if (!employee) {
+    return (
+      <DashboardLayout>
+        <div className="h-screen bg-slate-50 flex flex-col items-center justify-center text-center p-4">
+          <MdPerson size={60} className="text-slate-400 mb-4" />
+          <h2 className="text-2xl font-semibold text-slate-700 mb-2">Employee Not Found</h2>
+          <p className="text-slate-500 mb-6">We couldn't find the employee you're looking for.</p>
+          <Link href="/employee" className="inline-flex items-center px-4 py-2 bg-indigo-600 text-white font-medium rounded-lg hover:bg-indigo-700 transition-colors shadow-sm">
+            <MdArrowBack className="w-5 h-5 mr-2" />
+            Back to Employee List
+          </Link>
+        </div>
+      </DashboardLayout>
+    );
   }
 
   return (
-    <>
-      <div className="min-h-screen bg-gray-50">
-        {/* Top Navigation */}
-        <div className="bg-white border-b">
-          <div className="max-w-7xl mx-auto">
-            <div className="flex space-x-8 overflow-x-auto">
-              {tabs.map((tab) => (
-                <button
-                  key={tab.id}
-                  onClick={() => setActiveTab(tab.id)}
-                  className={`py-4 px-2 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
-                    activeTab === tab.id
-                      ? 'border-blue-600 text-blue-600'
-                      : 'border-transparent text-gray-500 hover:text-gray-700'
-                  }`}
-                >
-                  {tab.label}
-                </button>
-              ))}
+    <DashboardLayout>
+      <div className="min-h-screen bg-slate-50">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          
+          <div className="mb-6">
+            <Link href="/employee" className="inline-flex items-center text-sm font-medium text-slate-600 hover:text-indigo-600 transition-colors duration-200 group bg-white px-4 py-2 rounded-lg shadow-sm border border-slate-200 hover:shadow-md">
+              <MdArrowBack className="w-5 h-5 mr-2 text-slate-400 group-hover:text-indigo-500 transition-colors" />
+              Back to Employee List
+            </Link>
+          </div>
+
+          <div className="bg-white rounded-2xl shadow-xl overflow-hidden border border-slate-200/50">
+            {/* Header with banner */}
+            <div className="relative">
+              <div className="h-40 bg-gradient-to-r from-blue-400 to-indigo-500"></div>
+              <div className="absolute top-20 left-0 right-0 px-4 sm:px-6 lg:px-8">
+                <div className="flex flex-col sm:flex-row items-center sm:items-end sm:space-x-5">
+                  <div className="flex-shrink-0">
+                    <img
+                      className="h-32 w-32 object-cover rounded-full border-4 border-white shadow-lg"
+                      src={`https://ui-avatars.com/api/?name=${employee.first_name}+${employee.last_name}&background=random&color=fff&size=128`}
+                      alt={`${employee.first_name} ${employee.last_name}`}
+                    />
+                  </div>
+                  <div className="mt-4 sm:mt-0 sm:pb-4 flex-grow text-center sm:text-left">
+                    <h1 className="text-3xl font-bold text-slate-800">{employee.first_name} {employee.last_name}</h1>
+                    <p className="text-md text-slate-500">{employee.designation_name}</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Spacer for header */}
+            <div className="pt-24 pb-8 px-4 sm:px-6 lg:px-8">
+              {/* Info Sections */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+
+                {/* Employment Details Card */}
+                <div className="bg-slate-50/80 rounded-2xl p-6 border border-slate-200/60">
+                  <h3 className="text-lg font-bold text-slate-800 mb-4 flex items-center"><MdWork className="mr-3 text-indigo-500" /> Employment Details</h3>
+                  <div className="space-y-2">
+                    <DetailItem icon={<MdBadge />} label="Employee ID" value={employee.employee_id} />
+                    <DetailItem icon={<MdBusiness />} label="Department" value={employee.department_name} />
+                    <DetailItem icon={<MdLocationOn />} label="Work Location" value={employee.work_location_name} />
+                  </div>
+                </div>
+                
+                {/* Contact Details Card */}
+                <div className="bg-slate-50/80 rounded-2xl p-6 border border-slate-200/60">
+                  <h3 className="text-lg font-bold text-slate-800 mb-4 flex items-center"><MdContactMail className="mr-3 text-indigo-500" /> Contact Details</h3>
+                  <div className="space-y-2">
+                    <DetailItem icon={<MdEmail />} label="Work Email" value={employee.email} />
+                    <DetailItem icon={<MdPhone />} label="Phone Number" value={employee.phone} />
+                  </div>
+                </div>
+
+                {/* Timeline & Status Card */}
+                <div className="bg-slate-50/80 rounded-2xl p-6 border border-slate-200/60">
+                  <h3 className="text-lg font-bold text-slate-800 mb-4 flex items-center"><MdCalendarToday className="mr-3 text-indigo-500" /> Timeline & Status</h3>
+                  <div className="space-y-2">
+                    <DetailItem icon={<MdCalendarToday />} label="Date of Joining" value={new Date(employee.date_of_joining).toLocaleDateString()} />
+                    <DetailItem icon={<MdCheckCircle />} label="Status" value={employee.status} />
+                  </div>
+                </div>
+
+                {/* Compensation Card */}
+                <div className="bg-slate-50/80 rounded-2xl p-6 border border-slate-200/60">
+                  <h3 className="text-lg font-bold text-slate-800 mb-4 flex items-center"><MdAttachMoney className="mr-3 text-indigo-500" /> Compensation</h3>
+                  <div className="space-y-2">
+                    <DetailItem icon={<MdAttachMoney />} label="Basic Salary" value={employee.basic_salary} />
+                    <DetailItem icon={<MdAttachMoney />} label="Annual CTC" value={employee.annual_ctc} />
+                  </div>
+                </div>
+
+              </div>
             </div>
           </div>
         </div>
-
-        <div className="max-w-7xl mx-auto py-8 px-4">
-          {activeTab === 'overview' ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {/* Left Column - Basic Info */}
-              <div className="bg-white rounded-lg shadow p-6">
-                <div className="relative">
-                  <div className="absolute top-0 left-0 bg-red-50 text-red-600 text-xs font-medium px-3 py-1 rounded-full">
-                    {employeeData.enablePortalAccess ? 'PORTAL ENABLED' : 'PORTAL DISABLED'}
-                  </div>
-                  <button 
-                    onClick={handleEdit}
-                    className="absolute top-0 right-0 text-gray-400 hover:text-gray-600"
-                  >
-                    <MdEdit className="w-5 h-5" />
-                  </button>
-                </div>
-
-                <div className="mt-8 text-center">
-                  <div className="w-24 h-24 bg-gray-200 rounded-full mx-auto mb-4"></div>
-                  <div className="text-xs text-gray-500 mb-1">
-                    {employeeData.isDirector ? 'DIRECTOR LEVEL' : 'EMPLOYEE'}
-                  </div>
-                  <h2 className="text-xl font-semibold text-gray-900 mb-1">
-                    {employeeData.firstName} {employeeData.lastName} ({employeeData.employeeId})
-                  </h2>
-                  <div className="text-gray-500">{employeeData.department}</div>
-                </div>
-
-                <div className="mt-8">
-                  <h3 className="text-sm font-medium text-gray-700 mb-4">BASIC INFORMATION</h3>
-                  <div className="space-y-4">
-                    <div className="flex items-center text-gray-600">
-                      <MdEmail className="w-5 h-5 mr-3" />
-                      <span>{employeeData.workEmail}</span>
-                    </div>
-                    <div className="flex items-center text-gray-600">
-                      <MdPhone className="w-5 h-5 mr-3" />
-                      <span>{employeeData.mobileNumber}</span>
-                    </div>
-                    <div className="flex items-center text-gray-600">
-                      <MdBusiness className="w-5 h-5 mr-3" />
-                      <span>{employeeData.gender}</span>
-                    </div>
-                    <div className="flex items-center text-gray-600">
-                      <MdCalendarToday className="w-5 h-5 mr-3" />
-                      <span>{employeeData.dateOfJoining} (Date of Joining)</span>
-                    </div>
-                    <div className="flex items-center text-gray-600">
-                      <MdBusiness className="w-5 h-5 mr-3" />
-                      <span>{employeeData.designation}</span>
-                    </div>
-                    <div className="flex items-center text-gray-600">
-                      <MdLocationOn className="w-5 h-5 mr-3" />
-                      <span>{employeeData.workLocation}</span>
-                    </div>
-                  </div>
-
-                  <div className="mt-6 pt-6 border-t">
-                    <div className="flex justify-between text-sm">
-                      <span className="text-gray-600">Portal Access</span>
-                      <div className="flex items-center">
-                        <span className="text-gray-700">Disabled</span>
-                        <button className="ml-2 text-blue-600 hover:text-blue-700">(Enable)</button>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Right Column - Additional Info */}
-              <div className="space-y-6">
-                {/* Personal Information Card */}
-                <div className="bg-white rounded-lg shadow">
-                  <div className="p-6">
-                    <div className="flex justify-between items-center mb-6">
-                      <h3 className="text-lg font-semibold text-gray-900">Personal Information</h3>
-                      <button 
-                        onClick={handleEdit}
-                        className="text-gray-400 hover:text-gray-600"
-                      >
-                        <MdEdit className="w-5 h-5" />
-                      </button>
-                    </div>
-                    <div className="grid grid-cols-2 gap-6">
-                      <div>
-                        <div className="text-sm text-gray-600 mb-1">Date of Birth</div>
-                        <div className="text-gray-900">{employeeData.dob || '-'}</div>
-                      </div>
-                      <div>
-                        <div className="text-sm text-gray-600 mb-1">Father's Name</div>
-                        <div className="text-gray-900">-</div>
-                      </div>
-                      <div>
-                        <div className="text-sm text-gray-600 mb-1">PAN</div>
-                        <div className="text-gray-900">-</div>
-                      </div>
-                      <div>
-                        <div className="text-sm text-gray-600 mb-1">Personal Email Address</div>
-                        <div className="text-gray-900">{employeeData.workEmail || '-'}</div>
-                      </div>
-                      <div>
-                        <div className="text-sm text-gray-600 mb-1">Residential Address</div>
-                        <div className="text-gray-900">{employeeData.address || '-'}</div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Payment Information Card */}
-                <div className="bg-white rounded-lg shadow">
-                  <div className="p-6">
-                    <div className="flex justify-between items-center mb-6">
-                      <h3 className="text-lg font-semibold text-gray-900">Payment Information</h3>
-                      <button 
-                        onClick={handleEdit}
-                        className="text-gray-400 hover:text-gray-600"
-                      >
-                        <MdEdit className="w-5 h-5" />
-                      </button>
-                    </div>
-                    <div>
-                      <div className="text-sm text-gray-600 mb-1">Payment Mode</div>
-                      <div className="text-gray-900">{employeeData.paymentMethod || 'Cash'}</div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          ) : activeTab === 'salary' ? (
-            <SalaryDetailsContent employeeData={employeeData} onEdit={handleEdit} />
-          ) : null}
-        </div>
       </div>
-
-      {/* Edit Form Modal */}
-      {showEditForm && (
-        <EditEmployeeForm
-          employeeData={employeeData}
-          onSave={handleSave}
-          onCancel={() => setShowEditForm(false)}
-        />
-      )}
-    </>
+    </DashboardLayout>
   );
-} 
+};
+
+export default EmployeeDetailsPage; 
