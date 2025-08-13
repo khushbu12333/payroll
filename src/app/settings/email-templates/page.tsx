@@ -1,9 +1,10 @@
 "use client";
-import React, { useState, FormEvent } from 'react';
-import { Mail, Edit, Eye, Plus, Trash2, Settings, Paperclip, X, Upload, FileText, FileSpreadsheet, File } from 'lucide-react';
+import React, { useState, useEffect, FormEvent } from 'react';
+import { Mail, Edit, Eye, Plus, Trash2, Settings, Paperclip, X, Upload, FileText, FileSpreadsheet, File, RefreshCw } from 'lucide-react';
 import SettingsLayout from '@/components/SettingsLayout';
 import dynamic from 'next/dynamic';
 import 'suneditor/dist/css/suneditor.min.css'; // Import Sun Editor's CSS File
+import { employeeAPI } from '@/lib/api';
 
 const SunEditor = dynamic(() => import("suneditor-react"), {
   ssr: false,
@@ -28,6 +29,14 @@ interface AttachmentFile {
   url?: string; // For URL/link attachments
   file?: File; // For file uploads
   isLink: boolean; // To distinguish between file upload and URL
+}
+
+interface Employee {
+  id: string;
+  name: string;
+  email: string;
+  employee_id: string;
+  // Add other employee properties as needed
 }
 
 const defaultTemplates: TemplateDict = {
@@ -110,16 +119,6 @@ const templateCategories = [
   }
 ];
 
-// Hardcoded employee list (from your emp.sql)
-const employees = [
-  {
-    id: "EMP001",
-    name: "Khushboo Rajpal",
-    email: "rajpalkhushbu4@gmail.com"
-  }
-  // Add more employees as needed
-];
-
 // Supported file types
 const SUPPORTED_FILE_TYPES = {
   // Documents
@@ -148,20 +147,29 @@ const SUPPORTED_FILE_TYPES = {
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 const MAX_ATTACHMENTS = 5;
 
+// Default sender email
+const DEFAULT_SENDER_EMAIL = "officeexellar@gmail.com";
+
 export default function EmailTemplatesUI() {
+  const [hasMounted, setHasMounted] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingTemplate, setEditingTemplate] = useState<Template | null>(null);
   const [previewTemplate, setPreviewTemplate] = useState<Template | null>(null);
   const [templates, setTemplates] = useState<TemplateDict>(defaultTemplates);
   const [categories, setCategories] = useState(templateCategories);
   
+  // Employee data states
+  const [employees, setEmployees] = useState<Employee[]>([]);
+  const [loadingEmployees, setLoadingEmployees] = useState(true);
+  const [employeeError, setEmployeeError] = useState<string | null>(null);
+  
   // Universal email send modal states
   const [showEmailSendModal, setShowEmailSendModal] = useState(false);
   const [currentEmailTemplate, setCurrentEmailTemplate] = useState<Template | null>(null);
-  const [selectedEmployee, setSelectedEmployee] = useState(employees[0]);
+  const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
   const [emailBody, setEmailBody] = useState("");
   const [emailSubject, setEmailSubject] = useState("");
-  const [senderEmail, setSenderEmail] = useState("");
+  const [senderEmail, setSenderEmail] = useState(DEFAULT_SENDER_EMAIL);
   const [sending, setSending] = useState(false);
 
   // Attachment states
@@ -173,6 +181,91 @@ export default function EmailTemplatesUI() {
 
   const initialFormState = { id: '', title: '', subject: '', category: '' };
   const [formState, setFormState] = useState<Omit<Template, 'id'> & { id?: string }>({ title: '', subject: '', category: '' });
+
+  // Hoisted function to avoid TDZ when called from useEffect
+  async function fetchEmployees() {
+    try {
+      setLoadingEmployees(true);
+      setEmployeeError(null);
+      
+      // Use the central API client which targets Django backend
+      const apiEmployees = await employeeAPI.getAll();
+      const transformedEmployees: Employee[] = apiEmployees.map((emp: any) => transformEmployee(emp));
+
+      setEmployees(transformedEmployees);
+      
+      // Set the first employee as default selected if available
+      if (transformedEmployees.length > 0) {
+        setSelectedEmployee(transformedEmployees[0]);
+      }
+
+      console.log(`Successfully loaded ${transformedEmployees.length} employees`);
+      
+    } catch (error) {
+      console.error('Failed to fetch employees:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Failed to load employees';
+      setEmployeeError(errorMessage);
+      
+      // Fallback to sample data for development/testing
+      console.log('Using fallback employee data');
+      const fallbackEmployees: Employee[] = [
+        {
+          id: "1",
+          name: "John Doe",
+          email: "john.doe@company.com",
+          employee_id: "EMP001"
+        },
+        {
+          id: "2", 
+          name: "Jane Smith",
+          email: "jane.smith@company.com",
+          employee_id: "EMP002"
+        },
+        {
+          id: "3",
+          name: "Mike Johnson", 
+          email: "mike.johnson@company.com",
+          employee_id: "EMP003"
+        }
+      ];
+      setEmployees(fallbackEmployees);
+      setSelectedEmployee(fallbackEmployees[0]);
+    } finally {
+      setLoadingEmployees(false);
+    }
+  }
+
+  // Fetch employees data on component mount
+  useEffect(() => {
+    setHasMounted(true);
+    fetchEmployees();
+  }, []);
+
+  if (!hasMounted) {
+    return null;
+  }
+
+  // Helper function to transform employee data from different formats
+  function transformEmployee(emp: any): Employee {
+    const id = emp.id?.toString() || emp.pk?.toString() || emp.employee_id?.toString();
+    const name = emp.name || emp.full_name || `${emp.first_name || ''} ${emp.last_name || ''}`.trim() || emp.username || 'Unknown Employee';
+    const email = emp.email || emp.email_address || emp.work_email || 'no-email@company.com';
+    const employee_id = emp.employee_id || emp.emp_id || emp.staff_id || emp.id?.toString() || 'N/A';
+    return { id, name, email, employee_id };
+  }
+
+  // Helper function to get CSRF token
+  const getCsrfToken = (): string => {
+    const cookieValue = document.cookie
+      .split('; ')
+      .find(row => row.startsWith('csrftoken='))
+      ?.split('=')[1];
+    return cookieValue || '';
+  };
+
+  const handleRefreshEmployees = () => {
+    fetchEmployees();
+  };
 
   const handleOpenCreateModal = () => {
     setEditingTemplate(null);
@@ -257,10 +350,10 @@ export default function EmailTemplatesUI() {
     const template = templates[templateId];
     if (template) {
       setCurrentEmailTemplate(template);
-      setSelectedEmployee(employees[0]);
+      setSelectedEmployee(employees.length > 0 ? employees[0] : null);
       setEmailSubject(template.subject);
       setEmailBody(getDefaultEmailBody(template));
-      setSenderEmail("");
+      setSenderEmail(DEFAULT_SENDER_EMAIL); // Set default sender email
       setAttachments([]); // Reset attachments
       setShowEmailSendModal(true);
     }
@@ -456,9 +549,35 @@ export default function EmailTemplatesUI() {
     const typeInfo = SUPPORTED_FILE_TYPES[fileType as keyof typeof SUPPORTED_FILE_TYPES] || SUPPORTED_FILE_TYPES['default'];
     return typeInfo.name;
   };
+
+  // Notification helper functions
+  const showNotification = (message: string, type: 'success' | 'error') => {
+    const notificationDiv = document.createElement('div');
+    const bgColor = type === 'success' ? 'bg-green-500' : 'bg-red-500';
+    const icon = type === 'success' 
+      ? '<path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>'
+      : '<path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"></path>';
+    
+    notificationDiv.className = `fixed top-4 right-4 ${bgColor} text-white px-6 py-3 rounded-lg shadow-lg z-50`;
+    notificationDiv.innerHTML = `
+      <div class="flex items-center space-x-2">
+        <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+          ${icon}
+        </svg>
+        <span>${message}</span>
+      </div>
+    `;
+    document.body.appendChild(notificationDiv);
+    setTimeout(() => {
+      if (document.body.contains(notificationDiv)) {
+        document.body.removeChild(notificationDiv);
+      }
+    }, 5000);
+  };
+
   const handleSendEmail = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!senderEmail || !emailSubject || !emailBody) {
+    if (!senderEmail || !emailSubject || !emailBody || !selectedEmployee) {
       alert('Please fill in all required fields.');
       return;
     }
@@ -494,71 +613,68 @@ export default function EmailTemplatesUI() {
         return null;
       }));
 
+      // Replace placeholders in email content
+      let processedSubject = emailSubject;
+      let processedBody = emailBody;
+      
+      if (selectedEmployee) {
+        processedSubject = processedSubject.replace(/\[Employee Name\]/g, selectedEmployee.name);
+        processedBody = processedBody.replace(/\[Employee Name\]/g, selectedEmployee.name);
+      }
+
+      // Add current date placeholders
+      const currentDate = new Date();
+      const currentMonth = currentDate.toLocaleString('default', { month: 'long' });
+      const currentYear = currentDate.getFullYear().toString();
+      
+      processedSubject = processedSubject.replace(/\[Month\]/g, currentMonth);
+      processedSubject = processedSubject.replace(/\[Year\]/g, currentYear);
+      processedBody = processedBody.replace(/\[Month\]/g, currentMonth);
+      processedBody = processedBody.replace(/\[Year\]/g, currentYear);
+
+      // Use the single Next.js email API route
       const response = await fetch('/api/send-email', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'X-CSRFToken': getCsrfToken(),
         },
         body: JSON.stringify({
           from: senderEmail,
           to: selectedEmployee.email,
-          subject: emailSubject,
-          body: emailBody,
+          subject: processedSubject,
+          body: processedBody,
           template: currentEmailTemplate?.id,
           employeeName: selectedEmployee.name,
+          employeeId: selectedEmployee.employee_id,
           attachments: attachmentsData.filter(Boolean)
         }),
       });
 
-      const result = await response.json();
-
-      if (result.success) {
-        setSending(false);
-        setShowEmailSendModal(false);
-        setAttachments([]); // Clear attachments
-        
-        // Success notification
-        const successDiv = document.createElement('div');
-        successDiv.className = 'fixed top-4 right-4 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg z-50';
-        successDiv.innerHTML = `
-          <div class="flex items-center space-x-2">
-            <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-              <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
-            </svg>
-            <span>${currentEmailTemplate?.title} sent successfully to ${selectedEmployee.name}!</span>
-          </div>
-        `;
-        document.body.appendChild(successDiv);
-        setTimeout(() => {
-          if (document.body.contains(successDiv)) {
-            document.body.removeChild(successDiv);
-          }
-        }, 5000);
-        
-      } else {
-        throw new Error(result.error || 'Failed to send email');
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || `HTTP ${response.status}`);
       }
+
+      const result = await response.json();
+      if (!result.success) {
+        throw new Error(result.error || 'Email sending failed');
+      }
+
+      setSending(false);
+      setShowEmailSendModal(false);
+      setAttachments([]); // Clear attachments
+      
+      showNotification(
+        `${currentEmailTemplate?.title} sent successfully to ${selectedEmployee.name}!`, 
+        'success'
+      );
     } catch (error) {
       setSending(false);
       console.error('Email sending error:', error);
       
-      // Error notification
-      const errorDiv = document.createElement('div');
-      errorDiv.className = 'fixed top-4 right-4 bg-red-500 text-white px-6 py-3 rounded-lg shadow-lg z-50';
-      errorDiv.innerHTML = `
-        <div class="flex items-center space-x-2">
-          <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-            <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"></path>
-          </svg>
-          <span>Failed to send email. Please check your configuration.</span>
-        </div>
-      `;
-      document.body.appendChild(errorDiv);
-      setTimeout(() => {
-        if (document.body.contains(errorDiv)) {
-          document.body.removeChild(errorDiv);
-        }
-      }, 5000);
+      const errorMessage = error instanceof Error ? error.message : 'Failed to send email. Please check your configuration.';
+      showNotification(errorMessage, 'error');
     }
   };
 
@@ -578,42 +694,121 @@ export default function EmailTemplatesUI() {
                   Email Templates
                 </h1>
                 <p className="text-black">Customize email templates for various notifications and communications</p>
+                <div className="flex items-center space-x-2 mt-1">
+                  <span className="text-sm text-gray-600">
+                    {loadingEmployees ? 'Loading employees...' : `${employees.length} employees loaded`}
+                  </span>
+                  {employeeError && (
+                    <span className="text-sm text-red-600">
+                      (Using fallback data)
+                    </span>
+                  )}
+                  <span className="text-sm text-blue-600">
+                    • Sender: {DEFAULT_SENDER_EMAIL}
+                  </span>
+                </div>
               </div>
             </div>
-            <button
-              onClick={handleOpenCreateModal}
-              className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-yellow-300 to-yellow-400 text-yellow-800 font-medium rounded-xl hover:from-yellow-400 hover:to-yellow-500 focus:outline-none focus:ring-4 focus:ring-yellow-200 transition-all duration-200 shadow-lg hover:shadow-xl"
-            >
-              <Plus className="w-5 h-5 mr-2" />
-              Create Template
-            </button>
+            <div className="flex items-center space-x-3">
+              <button
+                onClick={handleRefreshEmployees}
+                disabled={loadingEmployees}
+                className="inline-flex items-center px-3 py-2 bg-blue-50 text-blue-600 font-medium rounded-lg hover:bg-blue-100 focus:outline-none focus:ring-4 focus:ring-blue-200 transition-all duration-200 shadow-sm hover:shadow-md disabled:opacity-50"
+              >
+                <RefreshCw className={`w-4 h-4 mr-2 ${loadingEmployees ? 'animate-spin' : ''}`} />
+                Refresh Employees
+              </button>
+              <button
+                onClick={handleOpenCreateModal}
+                className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-yellow-300 to-yellow-400 text-yellow-800 font-medium rounded-xl hover:from-yellow-400 hover:to-yellow-500 focus:outline-none focus:ring-4 focus:ring-yellow-200 transition-all duration-200 shadow-lg hover:shadow-xl"
+              >
+                <Plus className="w-5 h-5 mr-2" />
+                Create Template
+              </button>
+            </div>
           </div>
         </div>
       </div>
 
       <div className="max-w-7xl mx-auto px-6 py-8">
-        {/* Quick Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-          <div className="bg-white border border-yellow-200 rounded-2xl p-6 shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-1">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-black font-medium">Total Templates</p>
-                <p className="text-3xl font-bold text-black mt-1">{Object.keys(templates).length}</p>
+        {/* API Status Banner */}
+        {employeeError && (
+          <div className="mb-6 bg-amber-50 border-l-4 border-amber-400 p-4 rounded-lg">
+            <div className="flex">
+              <div className="flex-shrink-0">
+                <svg className="h-5 w-5 text-amber-400" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                </svg>
               </div>
-              <div className="p-3 bg-yellow-100/50 rounded-xl backdrop-blur-sm">
-                <Mail className="w-8 h-8 text-yellow-700" />
+              <div className="ml-3">
+                <h3 className="text-sm font-medium text-amber-800">
+                  API Connection Issue
+                </h3>
+                <div className="mt-2 text-sm text-amber-700">
+                  <p>Unable to connect to employee API endpoints. Using sample data for testing.</p>
+                  <p className="mt-1">
+                    <strong>Error:</strong> {employeeError}
+                  </p>
+                  <p className="mt-1">
+                    <strong>Suggested fixes:</strong>
+                  </p>
+                  <ul className="list-disc list-inside mt-1 space-y-1">
+                    <li>Ensure your Django server is running</li>
+                    <li>Check if the employee API endpoint exists (try: /api/employees/, /employees/api/list/)</li>
+                    <li>Verify CORS settings in Django</li>
+                    <li>Check Django URL patterns for employee endpoints</li>
+                  </ul>
+                </div>
               </div>
             </div>
           </div>
-          
+        )}
+
+        {/* Quick Stats */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+          <div className="bg-white border border-yellow-200 rounded-2xl p-6 shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-1">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-black font-medium">Total Employees</p>
+                <div className="mt-1">
+                  {loadingEmployees ? (
+                    <div className="w-8 h-8 border-2 border-yellow-600 border-t-transparent rounded-full animate-spin" aria-label="Loading employees"></div>
+                  ) : (
+                    <p className={`text-3xl font-bold text-black ${employeeError ? 'text-amber-600' : 'text-green-600'}`}>
+                      {employees.length}
+                    </p>
+                  )}
+                </div>
+                {employeeError && (
+                  <p className="text-xs text-amber-600 mt-1">Sample data</p>
+                )}
+              </div>
+              <div className="p-3 bg-green-100/50 rounded-xl backdrop-blur-sm">
+                <svg className="w-8 h-8 text-green-700" fill="currentColor" viewBox="0 0 20 20">
+                  <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </div>
+            </div>
+          </div>
           <div className="bg-white border border-yellow-200 rounded-2xl p-6 shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-1">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-black font-medium">Active Templates</p>
                 <p className="text-3xl font-bold text-black mt-1">{Object.keys(templates).length}</p>
               </div>
-              <div className="p-3 bg-yellow-200/50 rounded-xl backdrop-blur-sm">
-                <Edit className="w-8 h-8 text-yellow-700" />
+              <div className="p-3 bg-blue-100/50 rounded-xl backdrop-blur-sm">
+                <Mail className="w-8 h-8 text-blue-700" />
+              </div>
+            </div>
+          </div>
+          <div className="bg-white border border-yellow-200 rounded-2xl p-6 shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-1">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-black font-medium">Sender Email</p>
+                <p className="text-sm font-bold text-black mt-1 break-all">{DEFAULT_SENDER_EMAIL}</p>
+              </div>
+              <div className="p-3 bg-purple-100/50 rounded-xl backdrop-blur-sm">
+                <Settings className="w-8 h-8 text-purple-700" />
               </div>
             </div>
           </div>
@@ -684,6 +879,7 @@ export default function EmailTemplatesUI() {
                               <button
                                 className="inline-flex items-center px-3 py-1.5 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors"
                                 onClick={() => handleEmailSend(template.id)}
+                                disabled={employees.length === 0}
                               >
                                 <Mail className="w-4 h-4 mr-1" />
                                 Email
@@ -830,56 +1026,101 @@ export default function EmailTemplatesUI() {
             </div>
             
             <form onSubmit={handleSendEmail} className="space-y-6">
-              {/* Sender Email */}
+              {/* Employee Loading/Error State */}
+              {loadingEmployees ? (
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                  <div className="flex items-center space-x-2">
+                    <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+                    <span className="text-blue-800">Loading employees...</span>
+                  </div>
+                </div>
+              ) : employeeError ? (
+                <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-2">
+                      <svg className="w-4 h-4 text-amber-600" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd"></path>
+                      </svg>
+                      <span className="text-amber-800">Using sample employee data (API connection failed)</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleRefreshEmployees}
+                      className="text-amber-600 hover:text-amber-800 text-sm font-medium"
+                    >
+                      Retry
+                    </button>
+                  </div>
+                </div>
+              ) : employees.length === 0 ? (
+                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                  <div className="flex items-center space-x-2">
+                    <svg className="w-4 h-4 text-yellow-600" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd"></path>
+                    </svg>
+                    <span className="text-yellow-800">No employees found. Please add employees first or check your employee API endpoint.</span>
+                  </div>
+                </div>
+              ) : null}
+
+              {/* Sender Email - Pre-filled and read-only */}
               <div>
                 <label className="block text-sm font-medium text-black mb-2">From (Sender Email) *</label>
                 <input
                   type="email"
-                  className="w-full px-4 py-3 border border-yellow-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500"
+                  className="w-full px-4 py-3 border border-yellow-300 rounded-lg bg-gray-100 focus:outline-none"
                   value={senderEmail}
-                  onChange={(e) => setSenderEmail(e.target.value)}
-                  placeholder="Enter sender email address"
-                  required
+                  readOnly
                 />
+                <div className="text-xs text-gray-500 mt-1">
+                  Default sender email configured for your organization
+                </div>
               </div>
 
               {/* Employee Selection */}
-              <div>
-                <label className="block text-sm font-medium text-black mb-2">Select Employee *</label>
-                <select
-                  className="w-full px-4 py-3 border border-yellow-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500"
-                  value={selectedEmployee.id}
-                  onChange={handleEmployeeChange}
-                >
-                  {employees.map(emp => (
-                    <option key={emp.id} value={emp.id}>
-                      {emp.name} ({emp.id})
-                    </option>
-                  ))}
-                </select>
-              </div>
+              {employees.length > 0 && (
+                <>
+                  <div>
+                    <label className="block text-sm font-medium text-black mb-2">Select Employee *</label>
+                    <select
+                      className="w-full px-4 py-3 border border-yellow-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500"
+                      value={selectedEmployee?.id || ''}
+                      onChange={handleEmployeeChange}
+                    >
+                      <option value="" disabled>Select an employee</option>
+                      {employees.map(emp => (
+                        <option key={emp.id} value={emp.id}>
+                          {emp.name} ({emp.employee_id}) - {emp.email}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
 
-              {/* Employee Details */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-black mb-2">Employee ID</label>
-                  <input
-                    type="text"
-                    className="w-full px-4 py-3 border border-yellow-300 rounded-lg bg-gray-100"
-                    value={selectedEmployee.id}
-                    readOnly
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-black mb-2">Recipient Email</label>
-                  <input
-                    type="email"
-                    className="w-full px-4 py-3 border border-yellow-300 rounded-lg bg-gray-100"
-                    value={selectedEmployee.email}
-                    readOnly
-                  />
-                </div>
-              </div>
+                  {/* Employee Details */}
+                  {selectedEmployee && (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-black mb-2">Employee ID</label>
+                        <input
+                          type="text"
+                          className="w-full px-4 py-3 border border-yellow-300 rounded-lg bg-gray-100"
+                          value={selectedEmployee.employee_id}
+                          readOnly
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-black mb-2">Recipient Email</label>
+                        <input
+                          type="email"
+                          className="w-full px-4 py-3 border border-yellow-300 rounded-lg bg-gray-100"
+                          value={selectedEmployee.email}
+                          readOnly
+                        />
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
 
               {/* Email Subject */}
               <div>
@@ -1044,7 +1285,7 @@ export default function EmailTemplatesUI() {
                 <button
                   type="submit"
                   className="px-6 py-3 bg-gradient-to-r from-yellow-500 to-yellow-600 hover:from-yellow-600 hover:to-yellow-700 text-white rounded-lg font-semibold transition-all duration-200 shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-                  disabled={sending || !senderEmail || !emailSubject || !emailBody}
+                  disabled={sending || !senderEmail || !emailSubject || !emailBody || !selectedEmployee}
                 >
                   {sending ? (
                     <>

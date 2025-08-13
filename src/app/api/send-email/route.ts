@@ -41,23 +41,55 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Create transporter - You can choose between Gmail or SMTP
-    const transporter = nodemailer.createTransport({
-      // Gmail configuration
-      service: 'gmail',
-      auth: {
-        user: process.env.EMAIL_USER || process.env.GMAIL_USER, // Your Gmail address
-        pass: process.env.EMAIL_PASS || process.env.GMAIL_APP_PASSWORD, // Your Gmail app password
-      },
-      // Or use SMTP configuration (uncomment if needed)
-      // host: process.env.SMTP_HOST,
-      // port: parseInt(process.env.SMTP_PORT || '587'),
-      // secure: false,
-      // auth: {
-      //   user: process.env.SMTP_USER,
-      //   pass: process.env.SMTP_PASS,
-      // },
-    });
+    // Resolve SMTP credentials robustly
+    const smtpUser = process.env.SMTP_USER || process.env.EMAIL_USER || process.env.GMAIL_USER;
+    const smtpPass = process.env.SMTP_PASS || process.env.EMAIL_PASSWORD || process.env.GMAIL_APP_PASSWORD || process.env.EMAIL_PASS;
+    const smtpHost = process.env.SMTP_HOST;
+    const smtpPort = process.env.SMTP_PORT ? parseInt(process.env.SMTP_PORT, 10) : undefined;
+    const smtpSecure = process.env.SMTP_SECURE ? process.env.SMTP_SECURE === 'true' : undefined;
+
+    if (!smtpUser || !smtpPass) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'Email transport is not configured',
+          details: 'Missing SMTP_USER/SMTP_PASS or EMAIL_USER/EMAIL_PASSWORD environment variables.'
+        },
+        { status: 500 }
+      );
+    }
+
+    // Prefer explicit SMTP config if provided; otherwise default to Gmail SMTP
+    const transporter = nodemailer.createTransport(
+      smtpHost
+        ? {
+            host: smtpHost,
+            port: smtpPort ?? 587,
+            secure: smtpSecure ?? false,
+            auth: { user: smtpUser, pass: smtpPass },
+          }
+        : {
+            host: 'smtp.gmail.com',
+            port: 465,
+            secure: true,
+            auth: { user: smtpUser, pass: smtpPass },
+          }
+    );
+
+    // Verify connection configuration early for clearer errors
+    try {
+      await transporter.verify();
+    } catch (verifyError) {
+      const msg = verifyError instanceof Error ? verifyError.message : String(verifyError);
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'Email transport verification failed',
+          details: msg,
+        },
+        { status: 500 }
+      );
+    }
 
     // Process attachments
     const emailAttachments: any[] = [];
@@ -108,8 +140,11 @@ export async function POST(request: NextRequest) {
     }
 
     // Email options
+    const displayName = process.env.EMAIL_FROM_NAME || 'HR Team';
     const mailOptions = {
-      from: `"HR Team" <${from}>`,
+      // Use authenticated mailbox as actual sender to satisfy SMTP/DMARC; set reply-to to requested sender
+      from: `${displayName} <${smtpUser}>`,
+      replyTo: from,
       to: to,
       subject: processedSubject,
       html: processedBody,
@@ -131,30 +166,42 @@ export async function POST(request: NextRequest) {
       attachmentCount: emailAttachments.length,
     });
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('Email sending error:', error);
-    
-    // Handle specific nodemailer errors
-    if (error instanceof Error) {
-      if (error.message.includes('Invalid login')) {
-        return NextResponse.json(
-          { success: false, error: 'Invalid email credentials. Please check your Gmail settings.' },
-          { status: 401 }
-        );
-      }
-      if (error.message.includes('Network')) {
-        return NextResponse.json(
-          { success: false, error: 'Network error. Please check your internet connection.' },
-          { status: 503 }
-        );
-      }
+
+    // Detailed nodemailer failure mapping
+    const message = error?.message || '';
+    const code = error?.code || '';
+    const response = error?.response || '';
+
+    if (typeof message === 'string' && message.toLowerCase().includes('invalid login')) {
+      return NextResponse.json(
+        { success: false, error: 'Invalid email credentials. Update SMTP credentials in environment.' },
+        { status: 401 }
+      );
+    }
+
+    if (code === 'EAUTH') {
+      return NextResponse.json(
+        { success: false, error: 'SMTP authentication failed (EAUTH). Check username/password or app password.' },
+        { status: 401 }
+      );
+    }
+
+    if (code === 'ECONNECTION' || (typeof message === 'string' && message.includes('getaddrinfo'))) {
+      return NextResponse.json(
+        { success: false, error: 'SMTP connection failed. Check SMTP host/port or network connectivity.' },
+        { status: 503 }
+      );
     }
 
     return NextResponse.json(
-      { 
-        success: false, 
-        error: 'Failed to send email', 
-        details: error instanceof Error ? error.message : 'Unknown error'
+      {
+        success: false,
+        error: 'Failed to send email',
+        details: typeof message === 'string' ? message : 'Unknown error',
+        code,
+        response,
       },
       { status: 500 }
     );

@@ -145,9 +145,10 @@ const PayrollPage = () => {
 
   const departments = ['HR', 'Engineering', 'Sales', 'Marketing', 'IT', 'Finance', 'Operations'];
 
-  // Improved API configuration with better error handling
-  const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
-  const API_ENDPOINT = `${API_BASE_URL}/api/payroll/`;
+  // Improved API configuration with better error handling and robust base normalization
+  const CONFIG_BASE = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api').replace(/\/+$/, '');
+  const API_ROOT = CONFIG_BASE.endsWith('/api') ? CONFIG_BASE : `${CONFIG_BASE}/api`;
+  const API_ENDPOINT = `${API_ROOT}/payroll/`;
 
   // Enhanced fetch function with comprehensive error handling
   const fetchPayrollData = async () => {
@@ -377,7 +378,7 @@ const PayrollPage = () => {
   // Fetch available employees from the employee page
   const fetchAvailableEmployees = async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/employees/`, {
+      const response = await fetch(`${API_ROOT}/employees/`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -390,7 +391,7 @@ const PayrollPage = () => {
         setAvailableEmployees(data.results || []);
         console.log('Available employees:', data.results);
       } else {
-        console.error('Failed to fetch available employees');
+        console.error('Failed to fetch available employees', response.status, response.statusText);
       }
     } catch (error) {
       console.error('Error fetching available employees:', error);

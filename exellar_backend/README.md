@@ -1,3 +1,21 @@
+# Railway deployment notes
+
+Service root should be `exellar_backend/`.
+
+1. Build/Start command
+   - Start command: `bash start.sh`
+2. Install command
+   - Leave default; Railway detects Python and runs `pip install -r requirements.txt` from this folder.
+3. Environment variables (examples)
+   - `DJANGO_SECRET_KEY`
+   - `DJANGO_DEBUG=false`
+   - `ALLOWED_HOSTS=<railway-app-domain>,<vercel-domain>`
+   - `DATABASE_URL=postgres://...` (Railway Postgres plugin provides this)
+   - `DB_SSL_REQUIRED=true`
+   - `EMAIL_HOST`, `EMAIL_PORT`, `EMAIL_USE_TLS`, `EMAIL_HOST_USER`, `EMAIL_HOST_PASSWORD`, `DEFAULT_FROM_EMAIL` (optional)
+4. Ports
+   - Railway sets `$PORT`. Gunicorn binds to it in `start.sh`.
+
 # Exellar Payroll Backend
 
 A comprehensive Django REST API backend for payroll management system.
