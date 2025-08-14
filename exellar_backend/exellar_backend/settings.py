@@ -92,11 +92,11 @@ WSGI_APPLICATION = 'exellar_backend.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': os.environ.get('POSTGRES_DB', 'exellar_db'),
-        'USER': os.environ.get('POSTGRES_USER', 'postgres'),
+        'NAME': os.environ.get('POSTGRES_DB', 'postgres'),
+        'USER': os.environ.get('POSTGRES_USER', 'postgres.fdvbkyxtrkwihikqmagt'),
         'PASSWORD': os.environ.get('POSTGRES_PASSWORD', '1234'),
-        'HOST': os.environ.get('POSTGRES_HOST', 'localhost'),
-        'PORT': os.environ.get('POSTGRES_PORT', '5432'),
+        'HOST': os.environ.get('POSTGRES_HOST', 'aws-1-ap-southeast-1.pooler.supabase.com'),
+        'PORT': os.environ.get('POSTGRES_PORT', '6543'),
         'OPTIONS': {
             'sslmode': os.environ.get('DB_SSLMODE', 'require'),
         },
