@@ -16,7 +16,6 @@ interface EmailRequest {
   to: string;
   subject: string;
   body: string;
-  template: string;
   employeeName: string;
   attachments?: AttachmentData[];
 }
@@ -91,7 +90,8 @@ export async function POST(request: NextRequest) {
     }
 
     // Process attachments
-    const emailAttachments: Array<{ filename: string; content: string; encoding: 'base64'; contentType: string; }> = [];
+    type EmailAttachment = { filename: string; content: string; encoding: 'base64'; contentType: string };
+    const emailAttachments: EmailAttachment[] = [];
     
     for (const attachment of attachments) {
       if (attachment.type === 'file' && attachment.data) {
@@ -169,11 +169,11 @@ export async function POST(request: NextRequest) {
     console.error('Email sending error:', error);
 
     // Detailed nodemailer failure mapping
-    type MailError = { message?: string; code?: string; response?: string };
+    interface MailError { message?: string; code?: string; response?: string }
     const err = (error ?? {}) as MailError;
-    const message = err.message || '';
-    const code = err.code || '';
-    const response = err.response || '';
+    const message: string = err.message || '';
+    const code: string = err.code || '';
+    const response: string = err.response || '';
 
     if (typeof message === 'string' && message.toLowerCase().includes('invalid login')) {
       return NextResponse.json(
