@@ -21,12 +21,6 @@ from django.conf import settings
 from django.conf.urls.static import static
 # from authentication import views
 
-urlpatterns = [
-    path('admin/', admin.site.urls),
-    path('api/', include('payroll.urls')),
-    path('', api_root),
-]+ static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
-
 def api_root(request):
     """Root API endpoint"""
     return JsonResponse({
@@ -38,4 +32,10 @@ def api_root(request):
             'health_check': '/api/health/',
         }
     })
+
+urlpatterns = [
+    path('admin/', admin.site.urls),
+    path('api/', include('payroll.urls')),
+    path('', api_root),
+]+ static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
 
