@@ -88,35 +88,27 @@ WSGI_APPLICATION = 'exellar_backend.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
-# DATABASES = {
-#     'default': {
-#         'ENGINE': 'django.db.backends.postgresql',
-#         'NAME': os.environ.get('POSTGRES_DB', 'exellar_db'),
-#         'USER': os.environ.get('POSTGRES_USER', 'postgres'),
-#         'PASSWORD': os.environ.get('POSTGRES_PASSWORD', 'postgres'),
-#         'HOST': os.environ.get('POSTGRES_HOST', 'localhost'),
-#         'PORT': os.environ.get('POSTGRES_PORT', '5432'),
-#     }
-# }
-
+# Default to environment-driven Postgres config; prefer DATABASE_URL if provided
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'postgres',
-        'USER': 'postgres',
-        'PASSWORD': 'your_supabase_password',
-        'HOST': 'aws-0-us-east-1.pooler.supabase.com',  # Your actual Supabase host
-        'PORT': '5432',
+        'NAME': os.environ.get('POSTGRES_DB', 'exellar_db'),
+        'USER': os.environ.get('POSTGRES_USER', 'postgres'),
+        'PASSWORD': os.environ.get('POSTGRES_PASSWORD', '1234'),
+        'HOST': os.environ.get('POSTGRES_HOST', 'localhost'),
+        'PORT': os.environ.get('POSTGRES_PORT', '5432'),
         'OPTIONS': {
-            'sslmode': 'require',
+            'sslmode': os.environ.get('DB_SSLMODE', 'require'),
         },
     }
 }
 
-# Support DATABASE_URL if provided (Render/Heroku/Neon)
+# Support DATABASE_URL if provided (Railway/Heroku/Render/Neon/Supabase)
 if os.environ.get('DATABASE_URL'):
     DATABASES['default'] = dj_database_url.parse(
-        os.environ['DATABASE_URL'], conn_max_age=600, ssl_require=os.environ.get('DB_SSL_REQUIRED', 'true').lower() == 'true'
+        os.environ['DATABASE_URL'],
+        conn_max_age=600,
+        ssl_require=os.environ.get('DB_SSL_REQUIRED', 'true').lower() == 'true'
     )
 
 
