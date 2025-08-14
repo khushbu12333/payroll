@@ -220,7 +220,7 @@ function Dashboard() {
   }: {
     title: string;
     description: string;
-    icon: any;
+    icon: React.ElementType;
     color: string;
     onClick: () => void;
   }) => (
@@ -294,7 +294,7 @@ function Dashboard() {
             <h1 className="text-2xl font-bold text-gray-800 mb-1">
               Welcome back, {session?.user?.name?.split(' ')[0] || 'User'}!
             </h1>
-            <p className="text-gray-600">Here's what's happening with your organization today.</p>
+            <p className="text-gray-600">Here&apos;s what&apos;s happening with your organization today.</p>
             
             {/* Connection Status Indicator */}
             <div className="flex items-center mt-2">

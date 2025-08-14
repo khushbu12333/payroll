@@ -1,5 +1,5 @@
 "use client";
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { 
   FileText, 
   Plus, 
@@ -20,8 +20,8 @@ import {
   AlertCircle,
   Info
 } from 'lucide-react';
-import { useRouter } from 'next/navigation';
-import Sidebar from '@/components/Sidebar';
+// import { useRouter } from 'next/navigation';
+// import Sidebar from '@/components/Sidebar';
 import DashboardLayout from '@/components/DashboardLayout';
 
 interface Document {
@@ -55,7 +55,7 @@ interface Notification {
 }
 
 function PayrollDocumentSystem() {
-  const router = useRouter();
+  // const router = useRouter();
   const [documents, setDocuments] = useState<Document[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState<string>('');
@@ -76,7 +76,7 @@ function PayrollDocumentSystem() {
   const documentTypes = ['All', 'Salary Report', 'Tax Document', 'Bonus Report', 'Leave Record', 'Other'];
   const departments = ['Engineering', 'Marketing', 'Sales', 'HR', 'Finance'];
 
-  // Notification functions
+// Notification functions
   const addNotification = (notification: Omit<Notification, 'id'>) => {
     const id = Date.now();
     const newNotification = { ...notification, id };
@@ -129,17 +129,15 @@ function PayrollDocumentSystem() {
     });
   };
 
-  // Fetch documents from API
-  useEffect(() => {
-    fetchDocuments();
-  }, []);
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000/api';
 
-  const fetchDocuments = async () => {
+// Fetch documents from API
+const fetchDocuments = useCallback(async () => {
     try {
       setLoading(true);
       console.log('Fetching documents from API...');
       
-      const response = await fetch('http://127.0.0.1:8000/api/documents/');
+    const response = await fetch(`${API_BASE}/documents/`);
       console.log('Fetch response status:', response.status);
       
       if (!response.ok) {
@@ -183,7 +181,11 @@ function PayrollDocumentSystem() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [API_BASE]);
+
+useEffect(() => {
+  fetchDocuments();
+}, [fetchDocuments]);
 
   // Create new document via API
   const createDocument = async (documentData: FormData) => {
@@ -191,11 +193,11 @@ function PayrollDocumentSystem() {
       console.log('Sending document data to API...');
       
       // Log the FormData contents for debugging
-      for (let [key, value] of documentData.entries()) {
+      for (const [key, value] of documentData.entries()) {
         console.log(`${key}:`, value);
       }
       
-      const response = await fetch('http://127.0.0.1:8000/api/documents/', {
+      const response = await fetch(`${API_BASE}/documents/`, {
         method: 'POST',
         body: documentData,
       });
@@ -223,7 +225,7 @@ function PayrollDocumentSystem() {
     try {
       console.log(`Updating document ${id}...`);
       
-      const response = await fetch(`http://127.0.0.1:8000/api/documents/${id}/`, {
+      const response = await fetch(`${API_BASE}/documents/${id}/`, {
         method: 'PATCH',
         body: documentData,
       });
@@ -250,7 +252,7 @@ function PayrollDocumentSystem() {
     try {
       console.log(`Deleting document ${id}...`);
       
-      const response = await fetch(`http://127.0.0.1:8000/api/documents/${id}/`, {
+      const response = await fetch(`${API_BASE}/documents/${id}/`, {
         method: 'DELETE',
       });
       
@@ -442,7 +444,7 @@ function PayrollDocumentSystem() {
   const handleDownload = (doc: Document) => {
     if (doc.file_path) {
       // If there's an actual file path, try to download it
-      window.open(`http://127.0.0.1:8000${doc.file_path}`, '_blank');
+      window.open(`${API_BASE.replace(/\/api$/, '')}${doc.file_path}`, '_blank');
       showInfoNotification(
         'Download Started',
         `Downloading "${doc.name}"...`

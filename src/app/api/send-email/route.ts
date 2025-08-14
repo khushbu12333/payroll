@@ -28,7 +28,6 @@ export async function POST(request: NextRequest) {
       to,
       subject,
       body,
-      template,
       employeeName,
       attachments = []
     }: EmailRequest = await request.json();
@@ -92,7 +91,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Process attachments
-    const emailAttachments: any[] = [];
+    const emailAttachments: Array<{ filename: string; content: string; encoding: 'base64'; contentType: string; }> = [];
     
     for (const attachment of attachments) {
       if (attachment.type === 'file' && attachment.data) {
@@ -166,13 +165,15 @@ export async function POST(request: NextRequest) {
       attachmentCount: emailAttachments.length,
     });
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Email sending error:', error);
 
     // Detailed nodemailer failure mapping
-    const message = error?.message || '';
-    const code = error?.code || '';
-    const response = error?.response || '';
+    type MailError = { message?: string; code?: string; response?: string };
+    const err = (error ?? {}) as MailError;
+    const message = err.message || '';
+    const code = err.code || '';
+    const response = err.response || '';
 
     if (typeof message === 'string' && message.toLowerCase().includes('invalid login')) {
       return NextResponse.json(
