@@ -2,21 +2,23 @@
 
 import { Fragment, useState, useEffect } from 'react';
 import { Dialog, Transition } from '@headlessui/react';
-import { MdClose } from 'react-icons/md';
+// import { MdClose } from 'react-icons/md';
+
+interface WorkLocation {
+  id?: string;
+  name: string;
+  address: string;
+  address2?: string;
+  city: string;
+  state: string;
+  pincode: string;
+}
 
 interface WorkLocationModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (location: any) => void;
-  location?: {
-    id?: string;
-    name: string;
-    address: string;
-    address2?: string;
-    city: string;
-    state: string;
-    pincode: string;
-  };
+  onSave: (location: WorkLocation) => void;
+  location?: WorkLocation;
 }
 
 export default function WorkLocationModal({ isOpen, onClose, onSave, location }: WorkLocationModalProps) {

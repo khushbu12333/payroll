@@ -421,8 +421,8 @@ class APIClient {
     return this.makeRequest<{ status: string; timestamp: string }>('/health/');
   }
 
-  async getServerInfo(): Promise<any> {
-    return this.makeRequest<any>('/health/');
+  async getServerInfo(): Promise<{ status: string; timestamp: string }> {
+    return this.makeRequest<{ status: string; timestamp: string }>('/health/');
   }
 }
 

@@ -27,7 +27,6 @@ import {
   LayoutDashboard,
   UserPlus,
   FileCheck,
-  Cog,
   PieChart,
 } from 'lucide-react';
 
@@ -108,7 +107,6 @@ const Sidebar = () => {
         <nav className="space-y-6 px-6">
           {navigationGroups.map((group, groupIndex) => {
             const isExpanded = expandedGroups[group.title];
-            const hasActiveItem = group.items.some(item => isActive(item.href));
 
             return (
               <div key={group.title} className="space-y-3">
